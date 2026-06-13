@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+# LAB 1 starter pipeline. Read every comment — this file IS the lesson.
+# A "workflow" is one YAML file in .github/workflows/. GitHub runs it on the
+# events you list under `on:`. It contains "jobs"; each job runs on a fresh
+# virtual machine ("runner") and is made of ordered "steps".
+# ---------------------------------------------------------------------------
+name: CI
+
+# WHEN does this run? These are the triggers.
+on:
+  push:
+    branches: [main]          # every push to main
+  pull_request:               # and every pull request (this is the SDET gate)
+  workflow_dispatch:          # plus a manual "Run workflow" button in the UI
+
+jobs:
+  test:                       # job id (you choose this name)
+    runs-on: ubuntu-latest    # the runner OS. Linux is fastest & cheapest.
+
+    steps:
+      # 1) Pull your repo onto the runner. Almost every job starts with this.
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # 2) Put Python on the runner. `cache: pip` saves downloaded packages
+      #    between runs so installs are fast (this is your first taste of caching).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      # 3) Install dependencies. `run:` executes shell commands on the runner.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4) Lint. Fails the job on real errors; warnings don't block.
+      - name: Lint with flake8
+        run: |
+          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app tests --count --max-line-length=100 --statistics --exit-zero
+
+      # 5) Run tests with coverage, and produce machine-readable reports.
+      - name: Run tests
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml
+
+      # 6) Save the reports so you can download them from the run's page.
+      #    `if: always()` uploads even when tests fail — exactly when you need them.
+      - name: Upload test & coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            report.xml
+            coverage.xml
