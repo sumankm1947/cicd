@@ -2,41 +2,244 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Purpose
+> This file is also a **detailed learning log**. The owner is using it as raw
+> material for documentation they will write later, so it intentionally records
+> *what was done, why, and the concepts explained* — not just terse guidance.
+
+---
+
+## 1. Purpose
 
 This is a **CI/CD learning lab**, not a product. The owner is practicing GitHub
-Actions for an SDET career path. The Flask app + pytest suite exist only to give
-pipelines something real to run. Optimize explanations and changes for *teaching
-CI/CD concepts*, not for app features. See `README.md` for the lab curriculum (Labs 1–10).
+Actions on the path to an **SDET** role. They already know **API and UI
+automation**; the gap being filled here is **CI/CD**. The Flask app + pytest
+suite exist only to give a pipeline something real to run. Optimize all work for
+*teaching CI/CD concepts*, one lab at a time. Primary language: **Python**.
+Plan after GitHub Actions: port the same pipeline to **Azure DevOps**.
 
-## Commands
+Environment: Windows 11, Python 3.10, Docker + git installed, no `gh` CLI.
 
-Use the local venv interpreter (`venv/Scripts/python.exe` on Windows).
+---
+
+## 2. Commands
+
+Always use the project venv (`venv/`) so this stays independent of the owner's
+other project at `C:\E\Switch\pytest_api`.
 
 ```powershell
-.\venv\Scripts\Activate.ps1          # activate venv
+.\venv\Scripts\Activate.ps1          # activate venv (do this first)
 pip install -r requirements.txt      # install deps
-pytest                               # all tests
-pytest tests/test_api.py             # one file
-pytest -k divide                     # tests matching a name
+
+pytest                               # run all tests
+pytest tests/test_api.py             # run one file
+pytest -k divide                     # run tests whose name matches "divide"
 pytest --cov=app --cov-report=term-missing   # with coverage
 flake8 app tests --max-line-length=100        # lint
-python -m app.api                    # run the API on :5000
+python -m app.api                    # run the API at http://127.0.0.1:5000
 ```
 
-## Architecture
+If not activating the venv, call binaries directly: `.\venv\Scripts\pytest.exe`.
 
-- `app/calculator.py` — pure functions, no framework. Unit-test layer.
-- `app/api.py` — thin Flask wrapper over calculator (`/health`, `POST /calculate`).
-  Imports calculator via `from app import calculator`, so the package must stay importable.
-- `tests/` — `test_calculator.py` (unit) and `test_api.py` (Flask test client; no server needed).
-- `.github/workflows/ci.yml` — the pipeline. Heavily commented on purpose; comments
-  are the lesson. Keep them when editing.
+---
 
-## Working conventions here
+## 3. Architecture
 
-- When adding pipeline features, prefer one focused change per lab and explain the
-  *why* in YAML comments — the user reads the workflow file to learn.
-- Always verify changes locally (`pytest` + `flake8`) before suggesting a push;
-  Actions only run after pushing to GitHub.
+```
+app/calculator.py          pure functions (add/subtract/multiply/divide) — unit-test targets
+app/api.py                 Flask API: GET /health, POST /calculate {op,a,b}
+app/__init__.py            makes `app` an importable package
+tests/test_calculator.py   unit tests (no Flask, no network)
+tests/test_api.py          API tests via Flask's test client (no running server)
+.github/workflows/ci.yml   the pipeline (Lab 1) — every line is commented; comments are the lesson
+pytest.ini                 pytest config (see the pythonpath note below)
+requirements.txt           flask, pytest, pytest-cov, flake8 (all pinned)
+venv/                      local virtual environment
+```
+
+`app/api.py` imports the calculator via `from app import calculator`, so the
+`app` package must remain importable from the project root.
+
+Current status: **9 tests, all passing, ~91% coverage, flake8 clean.**
+
+---
+
+## 4. Key gotcha solved: `pythonpath` in pytest.ini
+
+**Symptom:** `ModuleNotFoundError: No module named 'app'` when running the bare
+`pytest` command (and it would have failed in CI too).
+
+**Root cause:** `python -m pytest` adds the current directory to `sys.path`, so
+`import app` works. The bare `pytest` console script (what the owner and the CI
+workflow use) does **not** add the project root to the path.
+
+**Fix:** added `pythonpath = .` to `pytest.ini` (a pytest 7+ feature). This puts
+the project root on the import path regardless of how pytest is invoked.
+
+**Lesson for the owner (SDET-relevant):** *how* a tool is invoked changes its
+import/runtime behavior — the classic "passes on my machine, fails in CI" trap.
+Pinning it in config is the durable fix. Requires pytest ≥ 7.0 (venv pins 8.2.2).
+
+```ini
+[pytest]
+addopts = -v
+testpaths = tests
+pythonpath = .
+```
+
+---
+
+## 5. CI/CD vocabulary (the 6 core words)
+
+- **Workflow** — one YAML file in `.github/workflows/`, triggered by events.
+- **Event / trigger** — what starts a run: `push`, `pull_request`, `schedule`, manual (`workflow_dispatch`). Declared under `on:`.
+- **Job** — runs on its own fresh, isolated VM (a **runner**). Jobs run in parallel by default.
+- **Step** — one ordered action inside a job: either `uses:` (a prebuilt action) or `run:` (shell commands).
+- **Action** — a reusable step from the Marketplace, e.g. `actions/checkout@v4`.
+- **Artifact** — a file a job produces (report, build) saved off the VM so you can download it or pass it on.
+
+Hierarchy:
+```
+workflow (ci.yml)
+└── jobs
+    └── test (a JOB — own VM)
+        └── steps (ordered commands)
+            ├── Check out code
+            ├── Set up Python
+            └── ...
+```
+
+---
+
+## 6. The Lab 1 pipeline, step by step (`.github/workflows/ci.yml`)
+
+`on:` triggers: `push` to main, every `pull_request` (the SDET merge gate), and
+`workflow_dispatch` (manual "Run workflow" button).
+
+One job, `test`, on `ubuntu-latest` (Linux = fastest/cheapest runner). Its steps:
+
+1. **Check out code** — `actions/checkout@v4` pulls the repo onto the runner. Nearly every job starts here.
+2. **Set up Python** — `actions/setup-python@v5` with `python-version: "3.10"` and `cache: pip` (caches downloaded packages between runs for speed — first taste of caching).
+3. **Install dependencies** — `pip install -r requirements.txt`.
+4. **Lint with flake8** — first pass (`--select=E9,F63,F7,F82`) fails the job on real errors; second pass (`--exit-zero`) reports style warnings without blocking.
+5. **Run tests** — `pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml`. Produces two machine-readable reports (see §8).
+6. **Upload test & coverage reports** — saves the reports as an artifact (see §8).
+
+---
+
+## 7. Steps vs Jobs, and a multi-job example
+
+All entries under one `steps:` belong to the **same job** and share the same VM
+and files. **Multiple jobs** each get a **fresh, isolated VM**, run in **parallel
+by default**, and can be chained with **`needs:`**.
+
+Use more **steps** for sequential tasks that share setup. Use separate **jobs**
+for parallelism, independent pass/fail signals, "run only if X passed" gating,
+or a different OS/Python/environment.
+
+Real-life SDET shape — fast checks → integration → deploy (main only):
+
+```yaml
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.10", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: flake8 app tests
+      - run: pytest tests/test_calculator.py
+
+  integration:
+    needs: lint-and-unit          # waits; won't start if lint-and-unit fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.10", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: pytest tests/test_api.py
+
+  deploy:
+    needs: integration
+    if: github.ref == 'refs/heads/main'   # skip on PRs
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploying... (real deploy command here)"
+```
+
+Graph: `lint-and-unit ──▶ integration ──▶ deploy (main only)`.
+
+**Gotcha:** because each job is a clean VM, to share a file between jobs you must
+pass it via artifacts (`upload-artifact` → `download-artifact`). (Later lab.)
+
+---
+
+## 8. The "Upload test & coverage reports" step, in depth
+
+```yaml
+- name: Upload test & coverage reports
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: test-reports
+    path: |
+      report.xml
+      coverage.xml
+```
+
+**Where the files come from** — the `pytest` step creates them:
+- `--junitxml=report.xml` → `report.xml`: every test, pass/fail, duration, error, in standard **JUnit XML** (understood by nearly all CI tools).
+- `--cov-report=xml` → `coverage.xml`: which lines of `app/` ran, in **Cobertura XML**.
+
+**Why upload at all** — each job's VM is destroyed when the job ends, taking those
+files with it. An **artifact** is a file explicitly saved off the VM so it survives
+and can be downloaded from the run's page.
+
+**Line meanings:**
+- `uses: actions/upload-artifact@v4` — GitHub's prebuilt upload action (v4).
+- `name: test-reports` — the downloadable bundle's name (`test-reports.zip`).
+- `path: |` — a YAML multi-line block listing files; supports multiple paths and globs (e.g. `htmlcov/**`).
+- `if: always()` — **most important.** By default a step is skipped if an earlier
+  step failed. But you most want the report exactly *when tests fail*. `if: always()`
+  forces the upload to run regardless of pass/fail. (Related: `success()` (default),
+  `failure()`, `cancelled()`.)
+
+**Retrieval:** Actions tab → the run → Artifacts section → download. Artifacts are
+kept 90 days by default (tunable via `retention-days:`).
+
+**Why an SDET cares:** the XML is raw material later turned into human-readable
+output — PR test summaries, coverage gates (Codecov/SonarQube) that block a PR when
+coverage drops, and clickable HTML coverage reports. This step is the foundation of
+CI **test reporting**.
+
+---
+
+## 9. Lab roadmap & current progress
+
+Full curriculum is in `README.md`. Status:
+
+- **Lab 1 — Baseline pipeline:** DONE. Scaffolded, fixed the `pythonpath` issue,
+  pushed to GitHub, pipeline ran **green**.
+- **Next (still Lab 1):** create a branch, intentionally break an assertion
+  (e.g. `test_add` → `== 6`), open a PR, and watch CI go **red** and block the
+  merge — proving the pipeline is a gate. Optionally add branch protection
+  (Settings → Branches → Require status checks) to *enforce* it. Then revert.
+- **Lab 2 — Matrix builds:** run the suite across Python 3.9–3.12 in parallel via
+  `strategy.matrix`. (Not started.)
+- **Labs 3–10:** multiple jobs + `needs`, secrets, deeper caching, scheduled/path-
+  filtered runs, Docker services, environments & deploy gates, reusable workflows,
+  reporting & badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
+
+---
+
+## 10. Working conventions in this repo
+
+- Teach CI/CD one lab at a time; keep the **comments in workflow YAML** — they are
+  the lesson, not clutter.
+- Always verify locally (`pytest` + `flake8`) before suggesting a push; Actions only
+  run after pushing to GitHub.
 - Lint config: pyflakes/E9 errors fail CI; line length is 100 and non-blocking.
+- Each lab should be its own branch + PR so the pipeline is experienced as a merge gate.
+- The owner does the `git`/push steps themselves (building the muscle memory); don't
+  push or `git init` on their behalf.
