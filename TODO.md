@@ -16,15 +16,19 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [x] Write the commented pipeline `.github/workflows/ci.yml`
 - [x] `git init`, commit, push to GitHub remote (`github`)
 - [x] Confirm pipeline runs GREEN in the Actions tab
-- [ ] Create a branch, intentionally break an assertion (e.g. `test_add` → `== 6`)
-- [ ] Open a PR and watch CI go RED (the merge gate in action)
+- [x] Create a branch, intentionally break an assertion (practice branch `break-a-case`, `test_add` → `== 6`)
+- [~] Open a PR and watch CI go RED — done as throwaway practice; branch intentionally NOT merged
 - [ ] Download the `test-reports` artifact and inspect `report.xml`
 - [ ] (Optional) Add branch protection: Settings → Branches → Require status checks
-- [ ] Revert the broken test / close the PR; confirm CI goes GREEN again
+- [~] Revert the broken test / close the PR — left `break-a-case` unmerged instead of reverting
 
 ## Lab 2 — Matrix builds
-- [ ] Run the suite across Python 3.9–3.12 in parallel via `strategy.matrix`
-- [ ] Observe one job definition fan out into multiple parallel runs
+- [x] Run the suite across Python 3.9–3.12 in parallel via `strategy.matrix`
+- [x] Set `fail-fast: false` so every failing version is reported, not just the first
+- [x] Make artifact names unique per version (`upload-artifact@v4` 409-collision fix)
+- [x] Push branch `lab-2-matrix` and open PR
+- [ ] Observe one job definition fan out into 4 parallel checks in the Actions tab
+- [ ] Confirm 4 artifact bundles (`test-reports-3.9` … `-3.12`); note any 3.9 cross-version failures
 
 ## Lab 3 — Multiple jobs + `needs`
 - [ ] Split `lint` and `test` into separate jobs

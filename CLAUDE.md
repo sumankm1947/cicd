@@ -220,13 +220,15 @@ CI **test reporting**.
 Full curriculum is in `README.md`. Status:
 
 - **Lab 1 — Baseline pipeline:** DONE. Scaffolded, fixed the `pythonpath` issue,
-  pushed to GitHub, pipeline ran **green**.
-- **Next (still Lab 1):** create a branch, intentionally break an assertion
-  (e.g. `test_add` → `== 6`), open a PR, and watch CI go **red** and block the
-  merge — proving the pipeline is a gate. Optionally add branch protection
-  (Settings → Branches → Require status checks) to *enforce* it. Then revert.
-- **Lab 2 — Matrix builds:** run the suite across Python 3.9–3.12 in parallel via
-  `strategy.matrix`. (Not started.)
+  pushed to GitHub, pipeline ran **green**. The "break a test on purpose" sub-
+  exercise was done as a throwaway practice branch (`break-a-case`) — it proved
+  the red-CI merge-gate concept and was intentionally *not* merged. Branch
+  protection was left as an optional follow-up.
+- **Lab 2 — Matrix builds:** DONE (config). Added `strategy.matrix` over Python
+  3.9–3.12 with `fail-fast: false`, and made artifact names unique per version
+  (`test-reports-${{ matrix.python-version }}`) to avoid the `upload-artifact@v4`
+  409 name-collision. Pushed on branch `lab-2-matrix`; PR opened to watch the
+  job fan out into 4 parallel checks. (See §11 for the lesson.)
 - **Labs 3–10:** multiple jobs + `needs`, secrets, deeper caching, scheduled/path-
   filtered runs, Docker services, environments & deploy gates, reusable workflows,
   reporting & badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
@@ -241,5 +243,66 @@ Full curriculum is in `README.md`. Status:
   run after pushing to GitHub.
 - Lint config: pyflakes/E9 errors fail CI; line length is 100 and non-blocking.
 - Each lab should be its own branch + PR so the pipeline is experienced as a merge gate.
-- The owner does the `git`/push steps themselves (building the muscle memory); don't
-  push or `git init` on their behalf.
+- The owner usually does the `git`/push steps themselves (building the muscle memory);
+  don't push or `git init` unless explicitly asked. (For Lab 2 they asked Claude to
+  branch/commit/push `lab-2-matrix`.) No `gh` CLI installed — open PRs from the link
+  the `git push` prints.
+
+---
+
+## 11. Lab 2 — Matrix builds (the lesson)
+
+**Goal:** prove the suite works across Python 3.9–3.12 without writing four jobs.
+
+A **matrix** is a property of the **job**, not a step. It lives under `strategy:`
+next to `runs-on`, and tells GitHub *"clone this whole job once per value."* Four
+versions → four independent jobs (`test (3.9)` … `test (3.12)`), each on its own
+fresh VM, all running **in parallel**. Each clone reads its value inside the steps
+via `${{ matrix.python-version }}`.
+
+```yaml
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false                                   # see gotcha 1
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}   # the per-clone value
+          cache: pip
+      # ... install / lint / test as before ...
+      - name: Upload test & coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.python-version }}  # see gotcha 2
+          path: |
+            report.xml
+            coverage.xml
+```
+
+**Mental model:** `strategy.matrix` = job-level = "make N copies of this job".
+`with:` = step-level = "inputs to THIS one action". The matrix lives where the
+cloning happens; the steps just read from it.
+
+**Gotcha 1 — `fail-fast`.** Default is `true`: the first matrix job to go red
+**cancels its still-running siblings**. As an SDET you usually want the opposite —
+see *every* version that breaks in one run — so set `fail-fast: false`.
+
+**Gotcha 2 — artifact name collisions (`upload-artifact@v4`).** All clones run the
+same upload step. In v4, two artifacts in one workflow run **cannot share a name**;
+the second to finish fails with a 409. Make the name unique per clone:
+`test-reports-${{ matrix.python-version }}`. (v3 silently merged them — a real
+behavior change worth knowing for interviews.)
+
+**Common mistake (hit during this lab):** putting `matrix:` under the step's
+`with:`. That's invalid — a matrix isn't a step input. It belongs at job level
+under `strategy:`.
+
+**Verifying locally:** you can't run a matrix off GitHub, but still confirm the
+suite is green on your local interpreter (`pytest` + `flake8`) before pushing; a
+matrix only multiplies *where* it runs, not *what* it runs.
