@@ -16,6 +16,10 @@ on:
 jobs:
   test:                       # job id (you choose this name)
     runs-on: ubuntu-latest    # the runner OS. Linux is fastest & cheapest.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
       # 1) Pull your repo onto the runner. Almost every job starts with this.
@@ -27,8 +31,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
           cache: pip
+
 
       # 3) Install dependencies. `run:` executes shell commands on the runner.
       - name: Install dependencies
@@ -52,7 +57,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.python-version }}
           path: |
             report.xml
             coverage.xml
