@@ -14,13 +14,41 @@ on:
   workflow_dispatch:          # plus a manual "Run workflow" button in the UI
 
 jobs:
-  test:                       # job id (you choose this name)
+  lint:                       # job id (you choose this name)
     runs-on: ubuntu-latest    # the runner OS. Linux is fastest & cheapest.
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # 2) Put Python on the runner. `cache: pip` saves downloaded packages
+      #    between runs so installs are fast (this is your first taste of caching).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      
+      # 3) Install dependencies. `run:` executes shell commands on the runner.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4) Lint. Fails the job on real errors; warnings don't block.
+      - name: Lint with flake8
+        run: |
+          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app tests --count --max-line-length=100 --statistics --exit-zero
+
+
+  test: 
+    runs-on: ubuntu-latest   
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-
     steps:
       # 1) Pull your repo onto the runner. Almost every job starts with this.
       - name: Check out code
@@ -40,13 +68,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      # 4) Lint. Fails the job on real errors; warnings don't block.
-      - name: Lint with flake8
-        run: |
-          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 app tests --count --max-line-length=100 --statistics --exit-zero
-
       # 5) Run tests with coverage, and produce machine-readable reports.
       - name: Run tests
         run: pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml

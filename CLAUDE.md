@@ -227,11 +227,15 @@ Full curriculum is in `README.md`. Status:
 - **Lab 2 — Matrix builds:** DONE (config). Added `strategy.matrix` over Python
   3.9–3.12 with `fail-fast: false`, and made artifact names unique per version
   (`test-reports-${{ matrix.python-version }}`) to avoid the `upload-artifact@v4`
-  409 name-collision. Pushed on branch `lab-2-matrix`; PR opened to watch the
-  job fan out into 4 parallel checks. (See §11 for the lesson.)
-- **Labs 3–10:** multiple jobs + `needs`, secrets, deeper caching, scheduled/path-
-  filtered runs, Docker services, environments & deploy gates, reusable workflows,
-  reporting & badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
+  409 name-collision. Merged via PR #2. (See §11 for the lesson.)
+- **Lab 3 — Multiple jobs + `needs`:** DONE (config). Split the single job into
+  `lint` (one run on 3.10) and `test` (matrix 3.9–3.12), chained with
+  `needs: lint` so the test fan-out waits for lint. Each job carries its own
+  checkout + setup-python + install (fresh-VM isolation). Pushed straight to
+  `main` (skipped the PR this time). (See §12 for the lesson.)
+- **Labs 4–10:** secrets, deeper caching, scheduled/path-filtered runs, Docker
+  services, environments & deploy gates, reusable workflows, reporting & badges.
+  Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
 
 ---
 
@@ -306,3 +310,58 @@ under `strategy:`.
 **Verifying locally:** you can't run a matrix off GitHub, but still confirm the
 suite is green on your local interpreter (`pytest` + `flake8`) before pushing; a
 matrix only multiplies *where* it runs, not *what* it runs.
+
+---
+
+## 12. Lab 3 — Multiple jobs + `needs` (the lesson)
+
+**Goal:** split one job into two — `lint` and `test` — and make `test` wait for
+`lint` to pass.
+
+```yaml
+jobs:
+  lint:                         # JOB 1 — fast, cheap, runs once on 3.10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.10", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: flake8 app tests ...
+
+  test:                         # JOB 2 — the matrix fan-out
+    needs: lint                 # <-- the dependency edge
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4         # repeated on purpose (fresh VM)
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python-version }}", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: pytest ...
+      - uses: actions/upload-artifact@v4
+        ...
+```
+
+**`needs:` is the whole point.** It draws a dependency edge in the job graph:
+`lint → test (3.9/3.10/3.11/3.12)`. `lint` runs first; the four matrix jobs
+**don't even start** until it's green. Drop `needs:` and all jobs run in parallel.
+This is **fail-fast at the *job* level** — a style error blocks the PR before you
+burn four test runners.
+
+**Fresh-VM isolation (the recurring theme).** Each job is a brand-new machine, so
+`lint` and `test` *each* repeat checkout + setup-python + install. Nothing carries
+over between jobs. That repetition isn't waste to "fix" — it's the isolation that
+makes jobs independent, and it's exactly why sharing a built file later needs the
+**artifact handoff** (`upload-artifact` → `download-artifact`).
+
+**Lint runs once, not in the matrix.** Linting is Python-version-independent, so
+`lint` is a single job on 3.10. Only `test` carries the matrix. (Mistake hit
+during this lab: the matrix landed on `lint` and the setup steps got dropped from
+`test` — each job needs its *own* full setup.)
+
+**See the gate for real:** introduce a lint error, push, and watch `lint` go red
+while all four `test` jobs report **skipped** (they never run). Revert to restore.

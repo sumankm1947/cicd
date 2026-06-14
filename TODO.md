@@ -31,8 +31,11 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] Confirm 4 artifact bundles (`test-reports-3.9` … `-3.12`); note any 3.9 cross-version failures
 
 ## Lab 3 — Multiple jobs + `needs`
-- [ ] Split `lint` and `test` into separate jobs
-- [ ] Chain with `needs:`; understand the job graph and parallelism
+- [x] Split `lint` (single, 3.10) and `test` (matrix 3.9–3.12) into separate jobs
+- [x] Chain with `needs: lint` so `test` waits for lint to pass
+- [x] Give each job its own checkout + setup-python + install (fresh-VM isolation)
+- [ ] Observe the job graph (`lint → test (3.9…3.12)`) in the Actions tab
+- [ ] (Optional) Add a lint error on purpose; confirm the 4 `test` jobs show SKIPPED
 
 ## Lab 4 — Secrets
 - [ ] Add a repo secret, read via `${{ secrets.NAME }}`, confirm masking
