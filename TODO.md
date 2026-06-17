@@ -48,8 +48,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] Observe cache hits vs misses and the speed difference (miss → no-op push → hit)
 
 ## Lab 6 — Scheduled & path-filtered runs
-- [ ] Add a nightly `schedule: cron`
-- [ ] Add a workflow that only runs when `app/**` changes (`on: push: paths:`)
+- [x] Add a nightly `schedule: cron "0 3 * * *"` (03:00 UTC) to `ci.yml`
+- [x] Add isolated workflow `app-only.yml` that runs only when `app/**` changes (`on: push: paths:`)
+- [ ] Confirm the cron run appears in the Actions tab (next morning; UTC, best-effort timing)
+- [ ] Edit only `README.md` → `app-only.yml` stays idle; edit `app/` → it fires
 
 ## Lab 7 — Services / Docker
 - [ ] Add a `services:` container (e.g. postgres) for integration tests

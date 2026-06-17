@@ -243,9 +243,13 @@ Full curriculum is in `README.md`. Status:
   `cache: pip` from `setup-python` and added an explicit `actions/cache@v4`
   step in both jobs, keyed on `hashFiles('requirements.txt')` with a
   `restore-keys` prefix fallback. (See §13 for the lesson.)
-- **Labs 6–10:** scheduled/path-filtered runs, Docker services, environments &
-  deploy gates, reusable workflows, reporting & badges. Then port Labs 1–3 to
-  Azure DevOps (`azure-pipelines.yml`).
+- **Lab 6 — Scheduled & path-filtered runs:** DONE (config). Added a daily
+  `schedule: cron "0 3 * * *"` trigger to `ci.yml`, and a separate isolated
+  workflow `app-only.yml` that fires only on `push` with `paths: app/**`.
+  (See §14 for the lesson.)
+- **Labs 7–10:** Docker services, environments & deploy gates, reusable
+  workflows, reporting & badges. Then port Labs 1–3 to Azure DevOps
+  (`azure-pipelines.yml`).
 
 ---
 
@@ -452,3 +456,74 @@ repo cap).
 **The one danger to internalize:** caching's failure mode is *staleness* —
 restoring old deps that should have changed. The content fingerprint in the key
 (`hashFiles(...)`) is what prevents it. A cache key with no content hash is a bug.
+
+---
+
+## 14. Lab 6 — Scheduled & path-filtered runs (the lesson)
+
+**Goal:** two independent triggers, both under `on:`, both teaching the same
+theme — *not everything should run on every event.*
+
+### Part 1 — `schedule:` (a nightly cron), added to `ci.yml`
+
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"      # every day at 03:00 UTC
+```
+
+**The 5 cron fields:** `minute hour day-of-month month day-of-week`. So
+`0 3 * * *` = minute 0, hour 3, any day/month/weekday. Handy ones: `0 3 * * 1`
+(Mondays 03:00), `*/15 * * * *` (every 15 min).
+
+**Gotchas (interview-grade):**
+- **Cron is always UTC** — no timezone field. Convert in your head.
+- **`schedule` only runs on the default branch** (`main`), using the workflow as
+  it exists *on main*. You can't schedule a feature branch.
+- **Firing is best-effort, not punctual** — scheduled runs get delayed under load,
+  worst on the hour. Offset away from `0` (e.g. `7 3 * * *`) if timing matters.
+- **Auto-disabled after 60 days of repo inactivity** — GitHub pauses scheduled
+  runs until the next push. Expected for a quiet learning repo.
+
+**Why an SDET cares:** nightly regression suites, scheduled smoke tests against a
+deployed env, dependency-freshness checks — work that shouldn't wait for a commit.
+
+### Part 2 — path filters, in a *separate* workflow `app-only.yml`
+
+```yaml
+name: App-only check
+on:
+  push:
+    paths:
+      - "app/**"            # fires only when something under app/ changed
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "app/ changed — this workflow fired."
+```
+
+- `paths:` / `paths-ignore:` attach to **`push` and `pull_request` only** — *not*
+  to `schedule` or `workflow_dispatch` (no diff to filter on). Use one or the
+  other per event, never both. Globs: `**` spans directories, `*.md` is one level,
+  `**.md` is any depth.
+- **Done as its own file on purpose.** Bolting `paths:` onto the main `ci.yml`
+  push trigger would *stop the real test suite from running* on commits that don't
+  touch `app/` (test-only or config changes included) — the wrong call for a gate.
+  An isolated workflow gives a clean demo without weakening CI.
+
+**The big trap — the "skipped required check" deadlock.** If a path-filtered
+workflow is set as a **required status check** for merging, a PR that doesn't
+touch those paths shows the check as **skipped**, and a required check that never
+reports *passed* can **block the PR forever**. Know the failure mode; the fix is a
+path-aware pattern or an always-green placeholder job.
+
+**See it work:** commit a change to **only** `README.md` → `app-only.yml` stays
+idle; commit a change to **`app/calculator.py`** → it fires. That contrast is the
+lesson. (The `schedule` won't fire on demand — trigger `ci.yml` via
+`workflow_dispatch` to confirm the file is valid, then check the Actions tab next
+morning for the cron run.)

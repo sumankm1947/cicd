@@ -1,0 +1,10 @@
+name: App-only check
+on:
+  push:
+    paths:
+      - "app/**"
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "app/ changed — this workflow fired."
