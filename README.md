@@ -105,3 +105,4 @@ git push -u origin main
 ```
 Make the repo **public** = unlimited free Actions minutes while you learn.
 Open a PR for each lab so you see the pipeline act as a merge gate — that's the real SDET workflow.
+
