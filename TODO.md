@@ -38,11 +38,14 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] (Optional) Add a lint error on purpose; confirm the 4 `test` jobs show SKIPPED
 
 ## Lab 4 — Secrets
-- [ ] Add a repo secret, read via `${{ secrets.NAME }}`, confirm masking
+- [x] Add a step reading `MY_TOKEN` via `env:` and echo it to watch GitHub mask it to `***`
+- [ ] Create the `MY_TOKEN` repo secret (Settings → Secrets → Actions) so the value isn't empty
+- [ ] Confirm the value shows as `***` in the run log (masking)
 
 ## Lab 5 — Caching (deeper)
-- [ ] Replace `cache: pip` with explicit `actions/cache` keyed on `requirements.txt` hash
-- [ ] Observe cache hits vs misses and speed difference
+- [x] Replace `cache: pip` with explicit `actions/cache@v4` keyed on `requirements.txt` hash
+- [x] Add `restore-keys` prefix fallback; put `matrix.python-version` in the test job's key
+- [ ] Observe cache hits vs misses and the speed difference (miss → no-op push → hit)
 
 ## Lab 6 — Scheduled & path-filtered runs
 - [ ] Add a nightly `schedule: cron`
