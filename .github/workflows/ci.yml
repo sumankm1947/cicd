@@ -82,3 +82,10 @@ jobs:
           path: |
             report.xml
             coverage.xml
+      
+      - name: Use a secret token
+        env:
+          MY_TOKEN: ${{ secrets.MY_TOKEN }}
+        run: |
+          echo "Length: ${#MY_TOKEN}"
+          echo "Value: $MY_TOKEN"

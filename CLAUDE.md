@@ -33,6 +33,8 @@ pip install -r requirements.txt      # install deps
 pytest                               # run all tests
 pytest tests/test_api.py             # run one file
 pytest -k divide                     # run tests whose name matches "divide"
+pytest -n 4                          # run tests in parallel across 4 workers (pytest-xdist)
+pytest -n auto                       # let xdist pick worker count = CPU cores
 pytest --cov=app --cov-report=term-missing   # with coverage
 flake8 app tests --max-line-length=100        # lint
 python -m app.api                    # run the API at http://127.0.0.1:5000
@@ -52,7 +54,7 @@ tests/test_calculator.py   unit tests (no Flask, no network)
 tests/test_api.py          API tests via Flask's test client (no running server)
 .github/workflows/ci.yml   the pipeline (Lab 1) — every line is commented; comments are the lesson
 pytest.ini                 pytest config (see the pythonpath note below)
-requirements.txt           flask, pytest, pytest-cov, flake8 (all pinned)
+requirements.txt           flask, pytest, pytest-cov, pytest-xdist, flake8 (all pinned)
 venv/                      local virtual environment
 ```
 
