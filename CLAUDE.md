@@ -235,9 +235,17 @@ Full curriculum is in `README.md`. Status:
   `needs: lint` so the test fan-out waits for lint. Each job carries its own
   checkout + setup-python + install (fresh-VM isolation). Pushed straight to
   `main` (skipped the PR this time). (See §12 for the lesson.)
-- **Labs 4–10:** secrets, deeper caching, scheduled/path-filtered runs, Docker
-  services, environments & deploy gates, reusable workflows, reporting & badges.
-  Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
+- **Lab 4 — Secrets:** DONE (config). Added a step that reads `MY_TOKEN` via
+  `env:` and echoes it, to watch GitHub mask the value to `***` in the logs.
+  Pushed to `main`. (The repo secret `MY_TOKEN` must exist in Settings →
+  Secrets → Actions, else the value is empty and there's nothing to mask.)
+- **Lab 5 — Caching, deeper:** DONE (config). Removed the convenience
+  `cache: pip` from `setup-python` and added an explicit `actions/cache@v4`
+  step in both jobs, keyed on `hashFiles('requirements.txt')` with a
+  `restore-keys` prefix fallback. (See §13 for the lesson.)
+- **Labs 6–10:** scheduled/path-filtered runs, Docker services, environments &
+  deploy gates, reusable workflows, reporting & badges. Then port Labs 1–3 to
+  Azure DevOps (`azure-pipelines.yml`).
 
 ---
 
@@ -367,3 +375,80 @@ during this lab: the matrix landed on `lint` and the setup steps got dropped fro
 
 **See the gate for real:** introduce a lint error, push, and watch `lint` go red
 while all four `test` jobs report **skipped** (they never run). Revert to restore.
+
+---
+
+## 13. Lab 5 — Caching, the explicit way (the lesson)
+
+**Goal:** we've been caching since Lab 1 — `cache: pip` inside `setup-python` did
+it invisibly. Lab 5 rips that convenience off and wires the cache **by hand**, so
+the three things interviewers actually ask about are visible: the **key**, the
+**hit vs miss**, and the **`restore-keys` fallback**.
+
+**What a cache is.** A folder GitHub *saves* at the end of a job and *restores* at
+the start of a future run, so we don't re-download the same packages every time.
+For pip the folder worth caching is `~/.cache/pip` (downloaded wheels) — cache the
+*downloads*, not installed `site-packages`.
+
+**The two-part lifecycle (the part people miss).** One `actions/cache` step does
+both ends:
+- **Restore** happens *at the step* — when the runner reaches it, it looks for a
+  matching cache and pulls it down.
+- **Save** happens *automatically at the end of the job* (a hidden "post" step),
+  and **only on a miss**. A hit doesn't re-save — nothing changed.
+
+So you never write a separate save step. Place the cache step **before** install.
+
+```yaml
+  lint:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"      # note: NO `cache: pip` anymore
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-3.10-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-3.10-
+      - run: pip install -r requirements.txt   # HIT -> installs from cache, no net
+```
+
+**The key is the whole lesson.**
+`key: ${{ runner.os }}-pip-3.10-${{ hashFiles('requirements.txt') }}`
+- `hashFiles('requirements.txt')` is a fingerprint of the deps. **Edit
+  `requirements.txt` → key changes → fresh cache built.** Same deps → same key →
+  reused. This is what keeps the cache *correct* — you never restore stale deps.
+- `runner.os` + the Python version in the key stop Linux/3.10 wheels from
+  colliding with other combos.
+
+**`restore-keys` = the fallback (miss only).** A list of key *prefixes*. If no
+exact key match, GitHub grabs the newest cache whose name *starts with* the
+prefix (your previous deps cache), so you still skip most downloads and pip only
+fetches the one changed package. Without it, a single dep bump = full cold
+download.
+
+**Matrix twist (gotcha).** The `test` job is a matrix, so `matrix.python-version`
+goes **in the key** — otherwise all four versions fight over one cache and you'd
+restore 3.9 wheels into a 3.12 run:
+`key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}`.
+
+**Mental model:** `cache: pip` = "cache, just handle it." `actions/cache` = "here
+is exactly *what* to save, under *what* name, with *what* fallback." Same outcome;
+the explicit form is what you reach for when the default doesn't fit (multiple
+folders, custom keys, non-pip tools).
+
+**See it work (the experiment):**
+1. First push → log says **"Cache not found"** (miss); saved at job end.
+2. No-op push → **"Cache restored from key …"** (hit); install visibly faster.
+3. Bump a version in `requirements.txt` → **miss** again (key changed), but
+   `restore-keys` gives a partial restore — only the changed package downloads.
+
+Inspect stored caches at **Actions tab → Caches** (7-day idle eviction, 10 GB
+repo cap).
+
+**The one danger to internalize:** caching's failure mode is *staleness* —
+restoring old deps that should have changed. The content fingerprint in the key
+(`hashFiles(...)`) is what prevents it. A cache key with no content hash is a bug.
