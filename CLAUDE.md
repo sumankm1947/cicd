@@ -52,7 +52,10 @@ app/api.py                 Flask API: GET /health, POST /calculate {op,a,b}
 app/__init__.py            makes `app` an importable package
 tests/test_calculator.py   unit tests (no Flask, no network)
 tests/test_api.py          API tests via Flask's test client (no running server)
-.github/workflows/ci.yml   the pipeline (Lab 1) — every line is commented; comments are the lesson
+.github/workflows/ci.yml   the pipeline (Labs 1–7) — every line is commented; comments are the lesson
+.github/workflows/app-only.yml   path-filtered workflow (Lab 6); fires only on app/** changes
+Dockerfile                 packages the Flask app into an image (Lab 7)
+.dockerignore              keeps venv/.git/etc out of the build context (Lab 7)
 pytest.ini                 pytest config (see the pythonpath note below)
 requirements.txt           flask, pytest, pytest-cov, pytest-xdist, flake8 (all pinned)
 venv/                      local virtual environment
@@ -247,9 +250,16 @@ Full curriculum is in `README.md`. Status:
   `schedule: cron "0 3 * * *"` trigger to `ci.yml`, and a separate isolated
   workflow `app-only.yml` that fires only on `push` with `paths: app/**`.
   (See §14 for the lesson.)
-- **Labs 7–10:** Docker services, environments & deploy gates, reusable
-  workflows, reporting & badges. Then port Labs 1–3 to Azure DevOps
-  (`azure-pipelines.yml`).
+- **Lab 7 — Services / Docker:** DONE. Part B (real): wrote a `Dockerfile`
+  (python:3.10-slim, deps-before-code layer caching) + `.dockerignore`, built
+  and ran the image locally, then added a `docker-build` CI job (`needs: test`)
+  that builds the image and smoke-tests `/health` with `curl --fail`. Part A
+  (mechanism demo): added an `integration-db` job with a `services: postgres`
+  container, a `pg_isready` health check, and a `psql … SELECT version();` step
+  to prove connectivity. Branch `lab-7-services-docker`, PR #3, merged green.
+  (See §15 for the lesson.)
+- **Labs 8–10:** environments & deploy gates, reusable workflows, reporting &
+  badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
 
 ---
 
@@ -527,3 +537,104 @@ idle; commit a change to **`app/calculator.py`** → it fires. That contrast is 
 lesson. (The `schedule` won't fire on demand — trigger `ci.yml` via
 `workflow_dispatch` to confirm the file is valid, then check the Actions tab next
 morning for the cron run.)
+
+---
+
+## 15. Lab 7 — Services / Docker (the lesson)
+
+**Goal:** two unrelated mechanisms under one lab — **package the app as a Docker
+image and build it in CI** (Part B, real for us), and **stand up a dependency
+container with `services:`** (Part A, a mechanism demo since the calculator has
+no DB).
+
+### Core Docker vocabulary
+
+- **Image** — the frozen, built package (the Dockerfile's *output*). Like a `.exe`
+  on disk.
+- **Container** — a *running instance* of an image. One image → many containers,
+  like a class → many objects. A container only exists after `docker run`; a built
+  image alone has zero containers.
+- **Layer** — each Dockerfile line creates a cached layer. Images live in Docker's
+  own content-addressed store (on Windows, inside the Docker Desktop WSL VM —
+  *not* a file in the project folder). Identical base layers are stored once and
+  shared between images.
+
+### Part B — Dockerfile + build in CI (the real half)
+
+```dockerfile
+FROM python:3.10-slim       # minimal Linux that already has Python 3.10
+WORKDIR /app                # all later commands run inside /app
+COPY requirements.txt .     # copy deps list FIRST...
+RUN pip install --no-cache-dir -r requirements.txt   # ...install (this layer caches)
+COPY . .                    # then copy the app code
+EXPOSE 5000                 # documents the port the app listens on
+CMD ["python", "-m", "app.api"]   # what runs when a container starts
+```
+
+**The deps-before-code ordering is the key idea** — same "cache the deps, not the
+app" lesson as Lab 5, one level up. Change app code and Docker reuses the cached
+`pip install` layer instead of re-downloading everything.
+
+**Prerequisite that bit us nowhere only because it was already right:** the app
+must bind to `host="0.0.0.0"`, not `127.0.0.1` — otherwise it only listens
+*inside* the container and nothing outside (your machine, a CI smoke test) can
+reach it. `app/api.py` already did this.
+
+**`.dockerignore` (gotcha).** `COPY . .` drags in `venv/`, `.git/`, caches, etc.
+A `.dockerignore` excludes them (the `.gitignore` of the build context). **Trap
+hit during this lab:** unlike `.gitignore`, `.dockerignore` does **not** support
+*inline* comments — every non-`#` line is a pattern, so a trailing `# comment`
+corrupts the pattern (Docker errored with `non-printable ASCII characters`).
+Comments must be on their own line.
+
+**Local-first loop:** `docker build -t cicd-lab .` → `docker run --rm -p 5000:5000
+cicd-lab` → in another terminal `curl http://localhost:5000/health` →
+`{"status":"ok"}`. Having run every command by hand means the CI job is
+pre-tested.
+
+**The CI job** (`docker-build`, `needs: test`): ubuntu runners have Docker
+preinstalled, so it calls `docker build` directly, runs the container **detached**
+(`-d`, since a CI step can't hang), then smoke-tests with `curl --fail` (exits
+non-zero on an HTTP error → fails the job → catches "image builds but app is
+broken"), and cleans up with `if: always()`. The `sleep 3` before the curl is a
+known smell — a readiness race — fixable with a retry loop.
+
+### Part A — `services:` containers (the mechanism demo)
+
+```yaml
+  integration-db:
+    needs: test
+    runs-on: ubuntu-latest
+    services:                 # JOB-level key (sibling of runs-on / steps)
+      postgres:               # service id = its network hostname
+        image: postgres:16
+        env: { POSTGRES_USER: testuser, POSTGRES_PASSWORD: testpass, POSTGRES_DB: testdb }
+        ports: ["5432:5432"]  # container 5432 -> runner 5432
+        options: >-           # GitHub waits for healthy BEFORE running steps
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Connect to Postgres and run a query
+        env: { PGPASSWORD: testpass }
+        run: psql -h localhost -U testuser -d testdb -c "SELECT version();"
+```
+
+**Three things that make `services:` click:**
+1. **It's a job-level key** (sibling of `runs-on`/`steps`), not a step — same
+   "lives at the job level" shape as `strategy.matrix`.
+2. **The health check replaces guessing.** GitHub won't start your steps until
+   `--health-cmd pg_isready` reports healthy — the *proper* fix for the `sleep`
+   race in Part B. No sleeping, no flake.
+3. **Addressing it:** because our **steps run directly on the runner VM** (not
+   inside a container) and we mapped the port, we connect at `localhost:5432`. If
+   the *job itself* ran inside a container, you'd use the service name `postgres`
+   as the hostname instead — a classic interview distinction.
+
+**`psql` is preinstalled on `ubuntu-latest`.** If a run ever says `psql: command
+not found`, add `sudo apt-get install -y postgresql-client` before the connect
+step.
+
+**Why kept in its own job:** the calculator has no DB, so this job is honest about
+being a *mechanism* demo — the skill (wire a service + connect to it) transfers to
+any real app; the data is throwaway.

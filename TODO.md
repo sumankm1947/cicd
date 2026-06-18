@@ -54,8 +54,13 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] Edit only `README.md` → `app-only.yml` stays idle; edit `app/` → it fires
 
 ## Lab 7 — Services / Docker
-- [ ] Add a `services:` container (e.g. postgres) for integration tests
-- [ ] Write a `Dockerfile` and build the app image in CI
+- [x] Write a `Dockerfile` (python:3.10-slim, deps-before-code layer caching) and a `.dockerignore`
+- [x] Build + run the image locally; smoke-test `/health` → `{"status":"ok"}`
+- [x] Add a `docker-build` CI job (`needs: test`) that builds the image and curls `/health`
+- [x] Add an `integration-db` CI job with a `services: postgres` container + `pg_isready` health check
+- [x] Connect with `psql` and run `SELECT version();` to prove connectivity
+- [x] Push branch `lab-7-services-docker`, open PR #3, CI green, merged to main
+- [ ] (Note) the postgres part is a mechanism demo only — the calculator has no DB
 
 ## Lab 8 — Environments & deploy gates
 - [ ] Define a `production` environment with a required reviewer
