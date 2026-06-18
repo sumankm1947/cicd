@@ -1,0 +1,12 @@
+# Docker build-context ignore list (like .gitignore, but for `docker build`).
+# Comments must be on their own line — inline comments are NOT supported here.
+
+venv/
+.git/
+.github/
+.pytest_cache/
+__pycache__/
+*.pyc
+.coverage
+Dockerfile
+.dockerignore
