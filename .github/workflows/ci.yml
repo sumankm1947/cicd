@@ -105,3 +105,85 @@ jobs:
         run: |
           echo "Length: ${#MY_TOKEN}"
           echo "Value: $MY_TOKEN"
+
+
+  # ---------------------------------------------------------------------------
+  # LAB 7 (Part B) — build the app's Docker image in CI and smoke-test it.
+  # This proves the image we built locally also builds on a clean Linux runner,
+  # and that the containerised app actually answers requests.
+  # ---------------------------------------------------------------------------
+  docker-build:
+    needs: test                 # only bother building the image if tests passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # GitHub's ubuntu runners already have Docker installed, so we can call
+      # `docker` directly — no setup action needed. This runs your Dockerfile
+      # exactly like you did locally with `docker build -t cicd-lab .`.
+      - name: Build the image
+        run: docker build -t cicd-lab .
+
+      # Start the container in the BACKGROUND (-d = detached) so the job can
+      # continue to the next step. `--name app` lets us refer to it later;
+      # `-p 5000:5000` maps the runner's port 5000 to the container's.
+      - name: Run the container
+        run: docker run -d --name app -p 5000:5000 cicd-lab
+
+      # The smoke test: give Flask a moment to boot, then hit /health from the
+      # runner. `--fail` makes curl exit non-zero on any HTTP error, which fails
+      # the job — so "container builds but app is broken" is caught here.
+      - name: Smoke-test /health
+        run: |
+          sleep 3
+          curl --fail http://localhost:5000/health
+
+      # Always clean up the container, even if the smoke test failed
+      # (`if: always()`), so the step never leaves a dangling container.
+      - name: Stop the container
+        if: always()
+        run: docker rm -f app
+
+
+  # ---------------------------------------------------------------------------
+  # LAB 7 (Part A) — DEMO of the `services:` mechanism.
+  # Our calculator has NO database; this job exists only to learn how GitHub
+  # spins up a real dependency container next to the job, health-checks it,
+  # and how a step connects to it. The pattern transfers to any app with a DB.
+  # ---------------------------------------------------------------------------
+  integration-db:
+    needs: test
+    runs-on: ubuntu-latest
+
+    # `services:` is a JOB-level key (sibling of runs-on / steps). Each entry
+    # is a container GitHub starts ALONGSIDE the job, on the same network.
+    services:
+      postgres:                 # service id you choose (also its network hostname)
+        image: postgres:16      # pulled from Docker Hub
+        env:                    # config the postgres image reads at startup
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432           # map container's 5432 -> runner's 5432
+        # Health check: GitHub will NOT run our steps until pg_isready reports
+        # the DB is accepting connections. This is the proper fix for the
+        # timing race we hit with `sleep` in Part B.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Prove connectivity: connect with psql (preinstalled on ubuntu runners)
+      # and run a trivial query. If the DB were unreachable, this fails the job.
+      - name: Connect to Postgres and run a query
+        env:
+          PGPASSWORD: testpass     # psql reads the password from this env var
+        run: |
+          psql -h localhost -U testuser -d testdb -c "SELECT version();"
