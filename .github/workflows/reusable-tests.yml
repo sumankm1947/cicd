@@ -35,15 +35,24 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      # LAB 10: add a HUMAN-readable HTML test report alongside the machine
+      # reports. `--html=...` (pytest-html) renders every test case, its
+      # pass/fail, duration and any error into one page; `--self-contained-html`
+      # inlines the CSS/JS so the single file opens correctly after download.
       - name: Run tests
-        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml
+        run: >-
+          pytest
+          --cov=app --cov-report=term-missing --cov-report=xml
+          --junitxml=report.xml
+          --html=report.html --self-contained-html
 
       - name: Upload test & coverage reports
-        if: always()
+        if: always()                                         # upload even when tests fail — that's when you want the report
         uses: actions/upload-artifact@v4
         with:
           name: test-reports-${{ inputs.python-version }}   # unique per caller value (no v4 409)
           path: |
+            report.html
             report.xml
             coverage.xml
 
