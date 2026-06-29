@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+# LAB 9 (Part A) — a REUSABLE WORKFLOW, called via `workflow_call`.
+# This packages a whole JOB (run-tests) so other workflows can invoke it as a
+# unit, like calling a function. ci.yml's `test` job calls it once per Python
+# version (the matrix lives in the CALLER and passes `python-version` in here).
+#
+# The trigger is `on: workflow_call`, NOT push/pull_request — so this file
+# never runs on its own; it only runs when another workflow calls it.
+# ---------------------------------------------------------------------------
+name: Reusable tests
+
+on:
+  workflow_call:                 # <-- makes this file callable by other workflows
+    inputs:
+      python-version:
+        description: Python version to test against
+        required: true
+        type: string            # workflow_call inputs MUST be typed
+    secrets:
+      MY_TOKEN:
+        required: false         # secrets do NOT auto-flow; declare what you accept
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out FIRST so the local composite action below can be found, then
+      # reuse it — so here you see BOTH Lab 9 mechanisms composed together:
+      # a reusable workflow whose job uses a composite action.
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up environment (composite action)
+        uses: ./.github/actions/setup
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Run tests
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml
+
+      - name: Upload test & coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ inputs.python-version }}   # unique per caller value (no v4 409)
+          path: |
+            report.xml
+            coverage.xml
+
+      # Lab 4 secret demo, preserved here. The value only arrives if the CALLER
+      # forwards it — ci.yml does so with `secrets: inherit`. Without that, the
+      # secret is empty inside this reusable workflow (the no-auto-flow rule).
+      - name: Use a secret token
+        env:
+          MY_TOKEN: ${{ secrets.MY_TOKEN }}
+        run: |
+          echo "Length: ${#MY_TOKEN}"
+          echo "Value: $MY_TOKEN"

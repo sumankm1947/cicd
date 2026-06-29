@@ -23,26 +23,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      # 2) Put Python on the runner. `cache: pip` saves downloaded packages
-      #    between runs so installs are fast (this is your first taste of caching).
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # LAB 9 (Part B): instead of repeating setup-python + cache + install
+      # (as we used to), reuse the COMPOSITE ACTION via a step-level `uses:` of
+      # a local action path. Checkout above had to run first so this file exists.
+      - name: Set up environment (composite action)
+        uses: ./.github/actions/setup
         with:
           python-version: "3.10"
-      
-      - name: Cache pip downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-3.10-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-3.10-
-
-      # 3) Install dependencies. `run:` executes shell commands on the runner.
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
       # 4) Lint. Fails the job on real errors; warnings don't block.
       - name: Lint with flake8
@@ -51,60 +38,23 @@ jobs:
           flake8 app tests --count --max-line-length=100 --statistics --exit-zero
 
 
-  test: 
-    runs-on: ubuntu-latest   
+  # ---------------------------------------------------------------------------
+  # LAB 9 (Part A): the `test` job no longer lists its own steps. It CALLS the
+  # reusable workflow once per matrix value. A caller job puts `uses:` where
+  # `runs-on:` would go, and may NOT also have `runs-on:` or `steps:` — but it
+  # CAN keep `needs:`, `strategy.matrix`, `with:`, and `secrets:`. The matrix
+  # fans out here in the caller; each clone invokes the callee with one version.
+  # ---------------------------------------------------------------------------
+  test:
     needs: lint
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-      # 1) Pull your repo onto the runner. Almost every job starts with this.
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      # 2) Put Python on the runner. `cache: pip` saves downloaded packages
-      #    between runs so installs are fast (this is your first taste of caching).
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      
-      - name: Cache pip downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
-
-
-      # 3) Install dependencies. `run:` executes shell commands on the runner.
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      # 5) Run tests with coverage, and produce machine-readable reports.
-      - name: Run tests
-        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=report.xml
-
-      # 6) Save the reports so you can download them from the run's page.
-      #    `if: always()` uploads even when tests fail — exactly when you need them.
-      - name: Upload test & coverage reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-${{ matrix.python-version }}
-          path: |
-            report.xml
-            coverage.xml
-      
-      - name: Use a secret token
-        env:
-          MY_TOKEN: ${{ secrets.MY_TOKEN }}
-        run: |
-          echo "Length: ${#MY_TOKEN}"
-          echo "Value: $MY_TOKEN"
+    uses: ./.github/workflows/reusable-tests.yml   # call the reusable workflow
+    with:
+      python-version: ${{ matrix.python-version }} # pass this clone's version in
+    secrets: inherit                               # forward repo secrets (incl. MY_TOKEN)
 
 
   # ---------------------------------------------------------------------------
