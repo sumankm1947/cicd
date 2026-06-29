@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Practice Lab — Interview Revision Guide</title>
+<style>
+  :root{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eff2f5; --border:#d0d7de;
+    --ink:#1f2328; --muted:#57606a; --soft:#8c959f;
+    --accent:#0969da; --accent2:#8250df; --green:#1a7f37; --amber:#9a6700;
+    --red:#cf222e; --pink:#bf3989; --code:#f6f8fa;
+    --radius:14px; --maxw:920px;
+    --mono:'SFMono-Regular', Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;font-size:16px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* layout */
+  .wrap{display:grid;grid-template-columns:280px 1fr;max-width:1280px;margin:0 auto}
+  nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    padding:26px 18px 60px;border-right:1px solid var(--border);background:#fbfcfd}
+  nav.side h2{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:22px 0 8px}
+  nav.side a{display:block;color:var(--muted);padding:5px 10px;border-radius:8px;font-size:.9rem;border-left:2px solid transparent}
+  nav.side a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+  nav.side a.active{color:var(--accent);font-weight:600;background:rgba(9,105,218,.08);border-left:2px solid var(--accent)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem;margin-bottom:4px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .brand small{display:block;font-weight:400;color:var(--soft);font-size:.72rem;letter-spacing:.04em}
+
+  main{padding:0 clamp(20px,5vw,64px) 120px;min-width:0}
+  section{max-width:var(--maxw);margin:0 auto;padding-top:64px}
+  section>h2.t{font-size:1.7rem;margin:0 0 4px;scroll-margin-top:20px;display:flex;align-items:center;gap:12px}
+  section>h2.t .num{font-family:var(--mono);font-size:.95rem;color:var(--accent2);background:rgba(163,113,247,.12);
+    border:1px solid rgba(163,113,247,.3);padding:3px 9px;border-radius:8px}
+  h3{font-size:1.18rem;margin:34px 0 8px;color:var(--ink)}
+  h4{font-size:.98rem;margin:20px 0 6px;color:var(--ink)}
+  p{color:var(--ink)}
+  .lead{color:var(--muted);font-size:1.05rem}
+
+  /* hero */
+  header.hero{max-width:var(--maxw);margin:0 auto;padding-top:70px}
+  .hero h1{font-size:2.6rem;line-height:1.1;margin:0 0 12px;
+    background:linear-gradient(120deg,#1f2328,#0969da 55%,#8250df);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{font-size:1.15rem;color:var(--muted);max-width:680px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}
+  .chip{font-size:.78rem;font-family:var(--mono);background:var(--panel);border:1px solid var(--border);
+    color:var(--muted);padding:5px 11px;border-radius:999px}
+  .chip b{color:var(--green)}
+
+  /* code */
+  pre{background:var(--code);border:1px solid var(--border);border-radius:12px;padding:16px 18px;overflow-x:auto;
+    font-family:var(--mono);font-size:.83rem;line-height:1.55;margin:14px 0;position:relative}
+  pre .lang{position:absolute;top:8px;right:12px;font-size:.66rem;color:var(--soft);letter-spacing:.08em;text-transform:uppercase}
+  code{font-family:var(--mono);font-size:.86em;background:rgba(175,184,193,.2);padding:1px 6px;border-radius:5px;color:#1f2328}
+  pre code{background:none;padding:0;color:#1f2328;font-size:1em}
+  .c-key{color:#cf222e}.c-str{color:#0a3069}.c-com{color:#6e7781;font-style:italic}.c-num{color:#0550ae}.c-fn{color:#8250df}
+
+  /* boxes */
+  .box{border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin:16px 0;background:var(--panel)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--accent);background:var(--panel2);border-radius:0 12px 12px 0;padding:12px 18px;margin:16px 0}
+  .callout.tip{border-color:var(--green)} .callout.warn{border-color:var(--amber)}
+  .callout.trap{border-color:var(--red)} .callout.star{border-color:var(--accent2)}
+  .callout .lbl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px}
+  .callout.tip .lbl{color:var(--green)} .callout.warn .lbl{color:var(--amber)}
+  .callout.trap .lbl{color:var(--red)} .callout.star .lbl{color:var(--accent2)} .callout .lbl{color:var(--accent)}
+
+  .soundbite{background:linear-gradient(120deg,rgba(88,166,255,.10),rgba(163,113,247,.10));
+    border:1px solid rgba(88,166,255,.3);border-radius:12px;padding:14px 18px;margin:18px 0}
+  .soundbite .lbl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .soundbite p{margin:4px 0 0;font-size:1.02rem;color:var(--ink)}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--ink);font-weight:600}
+  td code{font-size:.82em}
+  tr:nth-child(even) td{background:rgba(0,0,0,.018)}
+
+  ul,ol{padding-left:22px}
+  li{margin:5px 0}
+  .muted{color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--border);margin:34px 0}
+
+  /* lab header badges */
+  .labmeta{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 4px}
+  .pill{font-size:.74rem;font-family:var(--mono);padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel)}
+  .pill.done{color:var(--green);border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.08)}
+
+  /* file tree */
+  .tree{font-family:var(--mono);font-size:.82rem;line-height:1.8;color:var(--muted)}
+  .tree .f{color:var(--accent)} .tree .d{color:#e3b341} .tree .cm{color:var(--soft)}
+
+  /* job graph diagram */
+  .diagram{background:var(--code);border:1px solid var(--border);border-radius:14px;padding:26px 20px;margin:18px 0;overflow-x:auto}
+  .flow{display:flex;align-items:center;gap:0;min-width:max-content;justify-content:center}
+  .node{font-family:var(--mono);font-size:.8rem;padding:10px 14px;border-radius:10px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--ink);text-align:center;white-space:nowrap}
+  .node.lint{border-color:var(--amber);color:var(--amber);background:#fff8e6}
+  .node.test{border-color:var(--accent);color:var(--accent);background:#eaf2fd}
+  .node.build{border-color:var(--green);color:var(--green);background:#e9f6ec}
+  .node.deploy{border-color:var(--accent2);color:var(--accent2);background:#f3edfc}
+  .arrow{color:var(--soft);font-size:1.3rem;padding:0 12px}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .branch{display:flex;flex-direction:column;gap:10px}
+
+  /* mock UI: actions run */
+  .mock{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:18px 0;font-size:.85rem}
+  .mock .bar{background:var(--panel2);padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+  .mock .bar .d{width:11px;height:11px;border-radius:50%}
+  .mock .bar .t{margin-left:8px;color:var(--muted);font-family:var(--mono);font-size:.78rem}
+  .mock .row{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:.82rem}
+  .mock .row:last-child{border-bottom:none}
+  .mock .row .ic{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;color:#fff;flex:0 0 auto}
+  .ic.ok{background:var(--green)} .ic.run{background:var(--amber)} .ic.skip{background:var(--soft)} .ic.wait{background:var(--accent2)}
+  .mock .row .dur{margin-left:auto;color:var(--soft);font-size:.76rem}
+  .indent{padding-left:34px !important}
+
+  /* terminal */
+  .term{background:#f6f8fa;border:1px solid var(--border);border-radius:12px;font-family:var(--mono);font-size:.8rem;margin:16px 0;overflow:hidden}
+  .term .top{background:#eaeef2;padding:7px 12px;border-bottom:1px solid var(--border);color:var(--soft);font-size:.72rem}
+  .term .body{padding:14px 16px;line-height:1.6;white-space:pre-wrap;color:#1f2328}
+  .term .g{color:var(--green)}.term .b{color:var(--accent)}.term .y{color:var(--amber)}.term .m{color:var(--soft)}
+
+  .figcap{font-size:.78rem;color:var(--soft);text-align:center;margin:-6px 0 18px;font-style:italic}
+
+  details{border:1px solid var(--border);border-radius:10px;margin:10px 0;background:var(--panel)}
+  details summary{cursor:pointer;padding:12px 16px;font-weight:600;color:var(--ink)}
+  details[open] summary{border-bottom:1px solid var(--border)}
+  details .inner{padding:6px 16px 14px}
+  .qa b{color:var(--accent)}
+
+  .toptag{font-size:.72rem;color:var(--soft);font-family:var(--mono)}
+  @media(max-width:980px){
+    .wrap{grid-template-columns:1fr}
+    nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ========================= SIDEBAR ========================= -->
+<nav class="side" id="toc">
+  <div class="brand"><span class="dot"></span>CI/CD Lab<small>Interview Revision Guide</small></div>
+  <h2>Foundations</h2>
+  <a href="#overview">Overview</a>
+  <a href="#architecture">Architecture &amp; app</a>
+  <a href="#vocab">The 6 core words</a>
+  <a href="#pipeline">Pipeline at a glance</a>
+  <h2>The Labs</h2>
+  <a href="#lab1">1 · Baseline pipeline</a>
+  <a href="#lab2">2 · Matrix builds</a>
+  <a href="#lab3">3 · Jobs &amp; needs</a>
+  <a href="#lab4">4 · Secrets</a>
+  <a href="#lab5">5 · Caching (explicit)</a>
+  <a href="#lab6">6 · Schedule &amp; paths</a>
+  <a href="#lab7">7 · Services / Docker</a>
+  <a href="#lab8">8 · Environments &amp; gates</a>
+  <a href="#lab9">9 · Reusable workflows</a>
+  <a href="#lab10">10 · HTML reporting</a>
+  <h2>Revision</h2>
+  <a href="#themes">Cross-cutting themes</a>
+  <a href="#cheat">Rapid-fire Q&amp;A</a>
+  <a href="#commands">Command reference</a>
+</nav>
+
+<!-- ========================= MAIN ========================= -->
+<main>
+
+<header class="hero">
+  <h1>CI/CD Practice Lab</h1>
+  <p class="lead">A hands-on journey through GitHub Actions — built one lab at a time on the path to an SDET role. The Flask app is just an excuse; <b>the pipeline is the point.</b></p>
+  <div class="chips">
+    <span class="chip"><b>10/10</b> labs complete</span>
+    <span class="chip">GitHub Actions</span>
+    <span class="chip">Python 3.10</span>
+    <span class="chip">Docker</span>
+    <span class="chip">pytest · flake8</span>
+    <span class="chip">9 tests · ~91% cov</span>
+  </div>
+  <p class="muted toptag">A single-file, self-contained reference. Diagrams below are CSS mockups of the GitHub UI — read them as illustrations of what you'd see in the Actions tab.</p>
+</header>
+
+<!-- ===== OVERVIEW ===== -->
+<section id="overview">
+  <h2 class="t"><span class="num">00</span>Overview</h2>
+  <p>This repository is a <b>CI/CD learning lab</b>, not a product. The author already knows API &amp; UI test automation; the deliberate gap being closed here is <b>continuous integration / delivery</b>. A tiny Flask calculator + pytest suite exist only to give a pipeline something real to run, lint, test, containerise and "deploy."</p>
+
+  <div class="grid2">
+    <div class="box">
+      <h4>The mental shift</h4>
+      <p class="muted">Automation you already write (API/UI tests) answers <i>"does the code work?"</i>. CI/CD answers <i>"run that automatically on every change, block the merge if it's red, and ship only when it's green and approved."</i></p>
+    </div>
+    <div class="box">
+      <h4>How to read this guide</h4>
+      <p class="muted">Each lab has a <b>Goal</b>, the <b>key concept</b>, a trimmed <b>code example</b>, the <b>gotchas</b> that bite in interviews, and a one-line <b>soundbite</b> you can recite. Skim the soundbites for a 5-minute refresh.</p>
+    </div>
+  </div>
+
+  <div class="soundbite">
+    <span class="lbl">★ One-sentence summary</span>
+    <p>I built a 5-job GitHub Actions pipeline — lint → matrix tests → Docker build + DB integration → gated deploy — and progressively layered on matrices, caching, secrets, scheduling, services, environments, reusable workflows and HTML reporting.</p>
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE ===== -->
+<section id="architecture">
+  <h2 class="t"><span class="num">01</span>Architecture &amp; the app under test</h2>
+  <p>Everything outside <code>.github/</code> exists purely to give the pipeline work to do.</p>
+
+  <div class="box">
+    <div class="tree">
+<span class="d">app/</span>
+  <span class="f">calculator.py</span>     <span class="cm"># pure add/subtract/multiply/divide — unit-test targets</span>
+  <span class="f">api.py</span>             <span class="cm"># Flask API: GET /health, POST /calculate {op,a,b}</span>
+  <span class="f">__init__.py</span>        <span class="cm"># makes `app` an importable package</span>
+<span class="d">tests/</span>
+  <span class="f">test_calculator.py</span> <span class="cm"># unit tests (no Flask, no network)</span>
+  <span class="f">test_api.py</span>        <span class="cm"># API tests via Flask test client (no running server)</span>
+<span class="d">.github/</span>
+  <span class="d">workflows/</span>
+    <span class="f">ci.yml</span>           <span class="cm"># the main pipeline (Labs 1–10)</span>
+    <span class="f">reusable-tests.yml</span> <span class="cm"># reusable workflow (Lab 9 + HTML report Lab 10)</span>
+    <span class="f">app-only.yml</span>     <span class="cm"># path-filtered workflow (Lab 6)</span>
+  <span class="d">actions/setup/</span>
+    <span class="f">action.yml</span>       <span class="cm"># composite action: setup-python + cache + install (Lab 9)</span>
+<span class="f">Dockerfile</span>           <span class="cm"># packages the app into an image (Lab 7)</span>
+<span class="f">.dockerignore</span>        <span class="cm"># keeps venv/.git out of the build context (Lab 7)</span>
+<span class="f">requirements.txt</span>     <span class="cm"># flask, pytest, pytest-cov, pytest-html, flake8 (pinned)</span>
+<span class="f">pytest.ini</span>           <span class="cm"># pytest config (pythonpath = .)</span>
+    </div>
+  </div>
+
+  <h3>The app in one screen</h3>
+  <div class="grid2">
+    <pre><span class="lang">python · calculator.py</span><code><span class="c-key">def</span> <span class="c-fn">divide</span>(a, b):
+    <span class="c-key">if</span> b == <span class="c-num">0</span>:
+        <span class="c-key">raise</span> ValueError(<span class="c-str">"Cannot divide by zero"</span>)
+    <span class="c-key">return</span> a / b</code></pre>
+    <pre><span class="lang">python · api.py</span><code><span class="c-com">@app.get("/health")</span>
+<span class="c-key">def</span> <span class="c-fn">health</span>():
+    <span class="c-key">return</span> jsonify(status=<span class="c-str">"ok"</span>)
+
+<span class="c-com"># app.run(host="0.0.0.0", ...)  <-- not 127.0.0.1!</span></code></pre>
+  </div>
+
+  <div class="callout trap">
+    <span class="lbl">Gotcha that recurs</span>
+    The API binds to <code>host="0.0.0.0"</code>, not <code>127.0.0.1</code>. Inside a Docker container <code>127.0.0.1</code> only listens <i>inside</i> the container — the CI smoke test (and your machine) could never reach it. This single line is what makes Lab 7's container reachable.
+  </div>
+
+  <h3 id="gotcha-pythonpath">The first real bug: <code>pythonpath</code> in pytest.ini</h3>
+  <table>
+    <tr><th>Symptom</th><td><code>ModuleNotFoundError: No module named 'app'</code> when running bare <code>pytest</code> — and it would fail in CI too.</td></tr>
+    <tr><th>Cause</th><td><code>python -m pytest</code> adds the current dir to <code>sys.path</code>; the bare <code>pytest</code> console script (what CI uses) does <b>not</b>.</td></tr>
+    <tr><th>Fix</th><td><code>pythonpath = .</code> in <code>pytest.ini</code> (pytest ≥ 7) — puts the project root on the import path no matter how pytest is invoked.</td></tr>
+  </table>
+  <div class="soundbite">
+    <span class="lbl">★ SDET soundbite</span>
+    <p>"<i>How</i> a tool is invoked changes its runtime behaviour — the classic 'passes on my machine, fails in CI' trap. Pinning it in config is the durable fix."</p>
+  </div>
+</section>
+
+<!-- ===== VOCAB ===== -->
+<section id="vocab">
+  <h2 class="t"><span class="num">02</span>The 6 core words</h2>
+  <p>Get these exact and you can talk pipelines fluently.</p>
+  <table>
+    <tr><th>Term</th><th>What it is</th></tr>
+    <tr><td><b>Workflow</b></td><td>One YAML file in <code>.github/workflows/</code>, triggered by events.</td></tr>
+    <tr><td><b>Event / trigger</b></td><td>What starts a run: <code>push</code>, <code>pull_request</code>, <code>schedule</code>, manual <code>workflow_dispatch</code>. Declared under <code>on:</code>.</td></tr>
+    <tr><td><b>Job</b></td><td>Runs on its own fresh, isolated VM (a <b>runner</b>). Jobs run in parallel by default.</td></tr>
+    <tr><td><b>Step</b></td><td>One ordered action in a job: either <code>uses:</code> (prebuilt action) or <code>run:</code> (shell).</td></tr>
+    <tr><td><b>Action</b></td><td>A reusable step from the Marketplace, e.g. <code>actions/checkout@v4</code>.</td></tr>
+    <tr><td><b>Artifact</b></td><td>A file a job produces (report, build) saved off the VM so it survives and can be downloaded.</td></tr>
+  </table>
+  <pre><span class="lang">hierarchy</span><code>workflow (ci.yml)
+└── jobs
+    └── test            (a JOB — its own VM)
+        └── steps       (ordered commands)
+            ├── checkout
+            ├── setup-python
+            └── pytest</code></pre>
+  <div class="callout star">
+    <span class="lbl">The recurring theme</span>
+    <b>Each job is a brand-new, isolated VM.</b> Nothing carries between jobs — that's why every job repeats checkout/setup, and why sharing a file between jobs needs the <b>artifact handoff</b>. This one fact explains half the design decisions below.
+  </div>
+</section>
+
+<!-- ===== PIPELINE ===== -->
+<section id="pipeline">
+  <h2 class="t"><span class="num">03</span>The pipeline at a glance</h2>
+  <p>The final <code>ci.yml</code> has five jobs wired into this graph:</p>
+
+  <div class="diagram">
+    <div class="flow">
+      <div class="node lint">lint<br><span class="muted">(3.10)</span></div>
+      <div class="arrow">→</div>
+      <div class="stack">
+        <div class="node test">test 3.9</div>
+        <div class="node test">test 3.10</div>
+        <div class="node test">test 3.11</div>
+        <div class="node test">test 3.12</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="branch">
+        <div class="node build">docker-build</div>
+        <div class="node build">integration-db</div>
+        <div class="node deploy">deploy<br><span class="muted">(main + approval)</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="figcap">Fig 1 — Job graph: <code>lint</code> gates the test matrix; the matrix gates the build, DB-integration and deploy jobs. <code>deploy</code> additionally needs <code>main</code> + a human approval.</p>
+
+  <p>Triggers (<code>on:</code>): every <code>push</code> to main, every <code>pull_request</code> (the merge gate), a manual <code>workflow_dispatch</code> button, and a nightly <code>schedule</code>.</p>
+</section>
+
+<!-- ========================= LAB 1 ========================= -->
+<section id="lab1">
+  <h2 class="t"><span class="num">L1</span>Baseline pipeline</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">checkout · setup · lint · test · artifact</span></div>
+  <p><b>Goal:</b> one job that checks out the code, installs deps, lints, runs tests, and uploads machine-readable reports — proving the merge gate works end to end.</p>
+
+  <pre><span class="lang">yaml · ci.yml (Lab 1 shape)</span><code><span class="c-key">on:</span>
+  <span class="c-key">push:</span> { <span class="c-key">branches:</span> [main] }
+  <span class="c-key">pull_request:</span>            <span class="c-com"># the SDET merge gate</span>
+  <span class="c-key">workflow_dispatch:</span>       <span class="c-com"># manual "Run workflow" button</span>
+<span class="c-key">jobs:</span>
+  <span class="c-key">test:</span>
+    <span class="c-key">runs-on:</span> ubuntu-latest   <span class="c-com"># Linux = fastest & cheapest runner</span>
+    <span class="c-key">steps:</span>
+      - <span class="c-key">uses:</span> actions/checkout@v4
+      - <span class="c-key">uses:</span> actions/setup-python@v5
+        <span class="c-key">with:</span> { <span class="c-key">python-version:</span> <span class="c-str">"3.10"</span>, <span class="c-key">cache:</span> pip }
+      - <span class="c-key">run:</span> pip install -r requirements.txt
+      - <span class="c-key">run:</span> flake8 app tests --select=E9,F63,F7,F82   <span class="c-com"># real errors fail</span>
+      - <span class="c-key">run:</span> pytest --cov=app --cov-report=xml --junitxml=report.xml
+      - <span class="c-key">uses:</span> actions/upload-artifact@v4
+        <span class="c-key">if:</span> <span class="c-fn">always()</span>            <span class="c-com"># upload even when tests fail</span>
+        <span class="c-key">with:</span> { <span class="c-key">name:</span> test-reports, <span class="c-key">path:</span> report.xml }</code></pre>
+
+  <h4>Artifacts — the key step</h4>
+  <p>The pytest flags produce two machine reports: <code>report.xml</code> (JUnit — every test, pass/fail, duration) and <code>coverage.xml</code> (Cobertura — which lines ran). The VM is destroyed at job end, so <code>upload-artifact</code> saves them off-VM.</p>
+  <div class="callout">
+    <span class="lbl">The one line that matters</span>
+    <code>if: always()</code> — by default a step is skipped after an earlier failure, but you want the report <i>most</i> when tests fail. <code>always()</code> forces the upload regardless. (Relatives: <code>success()</code>, <code>failure()</code>, <code>cancelled()</code>.)
+  </div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>The JUnit/Cobertura XML is the raw material for everything downstream — PR test summaries, coverage gates, HTML reports. Lab 1 lays that foundation.</p></div>
+</section>
+
+<!-- ========================= LAB 2 ========================= -->
+<section id="lab2">
+  <h2 class="t"><span class="num">L2</span>Matrix builds</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">strategy.matrix · fail-fast · artifact naming</span></div>
+  <p><b>Goal:</b> run the suite across Python 3.9–3.12 in parallel without writing four jobs.</p>
+
+  <pre><span class="lang">yaml</span><code><span class="c-key">test:</span>
+  <span class="c-key">runs-on:</span> ubuntu-latest
+  <span class="c-key">strategy:</span>
+    <span class="c-key">fail-fast:</span> <span class="c-num">false</span>                <span class="c-com"># see gotcha 1</span>
+    <span class="c-key">matrix:</span>
+      <span class="c-key">python-version:</span> [<span class="c-str">"3.9"</span>, <span class="c-str">"3.10"</span>, <span class="c-str">"3.11"</span>, <span class="c-str">"3.12"</span>]
+  <span class="c-key">steps:</span>
+    - <span class="c-key">uses:</span> actions/setup-python@v5
+      <span class="c-key">with:</span> { <span class="c-key">python-version:</span> <span class="c-str">${{ matrix.python-version }}</span> }
+    - <span class="c-key">uses:</span> actions/upload-artifact@v4
+      <span class="c-key">with:</span> { <span class="c-key">name:</span> test-reports-<span class="c-str">${{ matrix.python-version }}</span> }  <span class="c-com"># gotcha 2</span></code></pre>
+
+  <div class="callout star">
+    <span class="lbl">Mental model</span>
+    <code>strategy.matrix</code> is <b>job-level</b> = "make N copies of this job." <code>with:</code> is <b>step-level</b> = "inputs to this one action." The matrix lives where the cloning happens; steps just read from it via <code>${{ matrix.x }}</code>.
+  </div>
+  <div class="grid2">
+    <div class="callout warn"><span class="lbl">Gotcha 1 · fail-fast</span>Default <code>true</code> cancels sibling jobs the moment one goes red. As an SDET you want to see <i>every</i> version that breaks → set <code>fail-fast: false</code>.</div>
+    <div class="callout trap"><span class="lbl">Gotcha 2 · 409 collision</span>In <code>upload-artifact@v4</code> two artifacts in one run <b>cannot share a name</b> (v3 silently merged). Make it unique per clone: <code>test-reports-${{ matrix.python-version }}</code>.</div>
+  </div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>One job definition → four parallel runners. That's how you prove cross-version support cheaply.</p></div>
+</section>
+
+<!-- ========================= LAB 3 ========================= -->
+<section id="lab3">
+  <h2 class="t"><span class="num">L3</span>Multiple jobs &amp; <code>needs</code></h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">job graph · needs · fresh-VM isolation</span></div>
+  <p><b>Goal:</b> split into a <code>lint</code> job and a <code>test</code> job, and make <code>test</code> wait for <code>lint</code>.</p>
+
+  <pre><span class="lang">yaml</span><code><span class="c-key">jobs:</span>
+  <span class="c-key">lint:</span>                       <span class="c-com"># fast, cheap, once on 3.10</span>
+    <span class="c-key">runs-on:</span> ubuntu-latest
+    <span class="c-key">steps:</span> [ checkout, setup-python, install, flake8 ]
+  <span class="c-key">test:</span>
+    <span class="c-key">needs:</span> lint                <span class="c-com"># <-- the dependency edge</span>
+    <span class="c-key">strategy:</span> { <span class="c-key">matrix:</span> { <span class="c-key">python-version:</span> [...] } }
+    <span class="c-key">steps:</span> [ checkout, setup-python, install, pytest ]  <span class="c-com"># repeated on purpose</span></code></pre>
+
+  <div class="mock">
+    <div class="bar"><span class="d" style="background:#f85149"></span><span class="d" style="background:#d29922"></span><span class="d" style="background:#3fb950"></span><span class="t">Actions ▸ run #42 ▸ lint error pushed</span></div>
+    <div class="row"><span class="ic ok">✓</span> lint <span class="dur">red ✗ (style error)</span></div>
+    <div class="row indent"><span class="ic skip">–</span> test (3.9) <span class="dur">skipped</span></div>
+    <div class="row indent"><span class="ic skip">–</span> test (3.10) <span class="dur">skipped</span></div>
+    <div class="row indent"><span class="ic skip">–</span> test (3.11) <span class="dur">skipped</span></div>
+    <div class="row indent"><span class="ic skip">–</span> test (3.12) <span class="dur">skipped</span></div>
+  </div>
+  <p class="figcap">Fig 2 — With <code>needs: lint</code>, a lint failure makes all four <code>test</code> jobs show <b>skipped</b> — fail-fast at the <i>job</i> level, before you burn four test runners.</p>
+
+  <div class="callout"><span class="lbl">Why the repetition isn't waste</span>Each job is a clean VM, so <code>lint</code> and <code>test</code> each repeat checkout + setup + install. That repetition <i>is</i> the isolation that makes jobs independent — and exactly why sharing a built file later needs the artifact handoff.</div>
+  <div class="callout warn"><span class="lbl">Lint runs once</span>Linting is Python-version-independent, so it's a single job on 3.10. Only <code>test</code> carries the matrix.</div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p><code>needs:</code> draws the dependency edge in the job graph. Drop it and everything runs in parallel; add it and you get ordered, gated stages.</p></div>
+</section>
+
+<!-- ========================= LAB 4 ========================= -->
+<section id="lab4">
+  <h2 class="t"><span class="num">L4</span>Secrets</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">secrets context · masking</span></div>
+  <p><b>Goal:</b> read a repo secret and watch GitHub mask it in the logs.</p>
+
+  <pre><span class="lang">yaml</span><code>- <span class="c-key">name:</span> Use a secret token
+  <span class="c-key">env:</span>
+    <span class="c-key">MY_TOKEN:</span> <span class="c-str">${{ secrets.MY_TOKEN }}</span>
+  <span class="c-key">run:</span> |
+    echo <span class="c-str">"Length: ${#MY_TOKEN}"</span>
+    echo <span class="c-str">"Value: $MY_TOKEN"</span>     <span class="c-com"># prints as *** in the log</span></code></pre>
+
+  <div class="term">
+    <div class="top">run log — masking in action</div>
+    <div class="body">Length: 40
+Value: <span class="m">***</span></div>
+  </div>
+  <p class="figcap">Fig 3 — Any value pulled from <code>secrets.*</code> is automatically replaced with <code>***</code> in logs.</p>
+
+  <div class="callout warn"><span class="lbl">Setup required</span>The repo secret <code>MY_TOKEN</code> must exist under <b>Settings → Secrets → Actions</b>, else the value is empty and there's nothing to mask.</div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>Never hard-code credentials in a pipeline. Inject via <code>secrets.*</code>; GitHub masks them in logs automatically.</p></div>
+</section>
+
+<!-- ========================= LAB 5 ========================= -->
+<section id="lab5">
+  <h2 class="t"><span class="num">L5</span>Caching, the explicit way</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">actions/cache · keys · restore-keys</span></div>
+  <p><b>Goal:</b> rip off the convenience <code>cache: pip</code> and wire the cache by hand, exposing the three things interviewers ask about: the <b>key</b>, the <b>hit/miss</b>, and the <b>restore-keys fallback</b>.</p>
+
+  <pre><span class="lang">yaml</span><code>- <span class="c-key">uses:</span> actions/setup-python@v5
+  <span class="c-key">with:</span> { <span class="c-key">python-version:</span> <span class="c-str">"3.10"</span> }   <span class="c-com"># note: NO `cache: pip`</span>
+- <span class="c-key">uses:</span> actions/cache@v4
+  <span class="c-key">with:</span>
+    <span class="c-key">path:</span> ~/.cache/pip                <span class="c-com"># cache the DOWNLOADS, not site-packages</span>
+    <span class="c-key">key:</span> <span class="c-str">${{ runner.os }}-pip-3.10-${{ hashFiles('requirements.txt') }}</span>
+    <span class="c-key">restore-keys:</span> |
+      <span class="c-str">${{ runner.os }}-pip-3.10-</span>     <span class="c-com"># prefix fallback (miss only)</span>
+- <span class="c-key">run:</span> pip install -r requirements.txt  <span class="c-com"># HIT -> installs from cache</span></code></pre>
+
+  <h4>The two-part lifecycle people miss</h4>
+  <ul>
+    <li><b>Restore</b> happens <i>at the step</i> — the runner looks for a matching cache and pulls it down.</li>
+    <li><b>Save</b> happens <i>automatically at job end</i> (a hidden "post" step), and <b>only on a miss</b>. You never write a save step. Place the cache step <b>before</b> install.</li>
+  </ul>
+
+  <div class="callout star"><span class="lbl">The key is the whole lesson</span><code>hashFiles('requirements.txt')</code> fingerprints the deps. Edit the file → key changes → fresh cache. Same deps → same key → reused. <code>restore-keys</code> is a prefix list used <i>only on a miss</i>: grab the newest cache starting with the prefix, so a single dep bump downloads just the one changed package.</div>
+  <div class="callout warn"><span class="lbl">Matrix twist</span>In the matrix <code>test</code> job, put <code>matrix.python-version</code> <b>in the key</b> — otherwise all four versions fight over one cache and restore 3.9 wheels into a 3.12 run.</div>
+  <div class="callout trap"><span class="lbl">The one danger</span>Caching's failure mode is <b>staleness</b> — restoring old deps that should have changed. The content hash in the key prevents it. <i>A cache key with no content hash is a bug.</i></div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p><code>cache: pip</code> = "cache, just handle it." <code>actions/cache</code> = "here's exactly what to save, under what name, with what fallback." Reach for the explicit form when the default doesn't fit.</p></div>
+</section>
+
+<!-- ========================= LAB 6 ========================= -->
+<section id="lab6">
+  <h2 class="t"><span class="num">L6</span>Scheduled &amp; path-filtered runs</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">cron · paths · required-check deadlock</span></div>
+  <p><b>Goal:</b> two triggers, same theme — <i>not everything should run on every event.</i></p>
+
+  <div class="grid2">
+    <div>
+      <h4>Part 1 — nightly cron (in ci.yml)</h4>
+      <pre><span class="lang">yaml</span><code><span class="c-key">on:</span>
+  <span class="c-key">schedule:</span>
+    - <span class="c-key">cron:</span> <span class="c-str">"0 3 * * *"</span>   <span class="c-com"># 03:00 UTC daily</span></code></pre>
+      <p class="muted"><b>Fields:</b> minute · hour · day-of-month · month · day-of-week.</p>
+    </div>
+    <div>
+      <h4>Part 2 — path filter (app-only.yml)</h4>
+      <pre><span class="lang">yaml</span><code><span class="c-key">on:</span>
+  <span class="c-key">push:</span>
+    <span class="c-key">paths:</span>
+      - <span class="c-str">"app/**"</span>          <span class="c-com"># fires only on app/ changes</span></code></pre>
+    </div>
+  </div>
+
+  <h4>Cron gotchas (interview-grade)</h4>
+  <table>
+    <tr><td><b>UTC only</b></td><td>No timezone field. Convert in your head.</td></tr>
+    <tr><td><b>Default branch only</b></td><td><code>schedule</code> runs only on <code>main</code>, using the workflow as it exists on main. Can't schedule a feature branch.</td></tr>
+    <tr><td><b>Best-effort timing</b></td><td>Delayed under load, worst on the hour. Offset from <code>0</code> if timing matters.</td></tr>
+    <tr><td><b>Auto-disabled</b></td><td>Paused after 60 days of repo inactivity until the next push.</td></tr>
+  </table>
+
+  <div class="callout trap"><span class="lbl">The big trap — "skipped required check" deadlock</span>If a path-filtered workflow is a <b>required status check</b>, a PR that doesn't touch those paths shows it as <b>skipped</b> — and a required check that never reports <i>passed</i> can block the PR <b>forever</b>. Fix with a path-aware pattern or an always-green placeholder job.</div>
+  <div class="callout warn"><span class="lbl">Why a separate file</span>Bolting <code>paths:</code> onto the main <code>ci.yml</code> push trigger would stop the real test suite from running on test-only/config commits — the wrong call for a gate. An isolated workflow demos path filters without weakening CI.</div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>Schedules drive nightly regression / smoke suites; path filters skip work irrelevant to a change. Both say: don't run everything every time.</p></div>
+</section>
+
+<!-- ========================= LAB 7 ========================= -->
+<section id="lab7">
+  <h2 class="t"><span class="num">L7</span>Services / Docker</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">Dockerfile · layer caching · services · health checks</span></div>
+  <p><b>Goal:</b> two mechanisms — <b>package the app as an image and build it in CI</b> (real), and <b>stand up a dependency container with <code>services:</code></b> (mechanism demo).</p>
+
+  <h4>Docker vocabulary</h4>
+  <table>
+    <tr><td><b>Image</b></td><td>The frozen, built package (the Dockerfile's output). Like an <code>.exe</code> on disk.</td></tr>
+    <tr><td><b>Container</b></td><td>A running instance of an image. One image → many containers (class → objects).</td></tr>
+    <tr><td><b>Layer</b></td><td>Each Dockerfile line is a cached layer. Identical base layers are stored once and shared.</td></tr>
+  </table>
+
+  <h4>Part B — the Dockerfile (deps before code)</h4>
+  <pre><span class="lang">dockerfile</span><code><span class="c-key">FROM</span> python:3.10-slim
+<span class="c-key">WORKDIR</span> /app
+<span class="c-key">COPY</span> requirements.txt .                       <span class="c-com"># copy deps list FIRST...</span>
+<span class="c-key">RUN</span> pip install --no-cache-dir -r requirements.txt  <span class="c-com"># ...this layer caches</span>
+<span class="c-key">COPY</span> . .                                      <span class="c-com"># then copy app code</span>
+<span class="c-key">EXPOSE</span> 5000
+<span class="c-key">CMD</span> [<span class="c-str">"python"</span>, <span class="c-str">"-m"</span>, <span class="c-str">"app.api"</span>]</code></pre>
+  <div class="callout star"><span class="lbl">The key idea</span>Deps-before-code is the same "cache the deps, not the app" lesson as Lab 5, one level up. Change app code and Docker reuses the cached <code>pip install</code> layer instead of re-downloading everything.</div>
+  <div class="callout trap"><span class="lbl">.dockerignore trap</span>Unlike <code>.gitignore</code>, <code>.dockerignore</code> does <b>not</b> support inline comments — a trailing <code># comment</code> corrupts the pattern (Docker errors with "non-printable ASCII characters"). Comments go on their own line.</div>
+
+  <h4>The CI job &amp; the local-first loop</h4>
+  <pre><span class="lang">bash · local loop</span><code>docker build -t cicd-lab .
+docker run --rm -p 5000:5000 cicd-lab
+curl http://localhost:5000/health    <span class="c-com"># {"status":"ok"}</span></code></pre>
+  <p class="muted">CI mirrors this: <code>docker build</code> → run detached (<code>-d</code>) → <code>curl --fail /health</code> (non-zero on HTTP error → fails the job) → clean up with <code>if: always()</code>.</p>
+
+  <h4>Part A — <code>services:</code> (the mechanism demo)</h4>
+  <pre><span class="lang">yaml</span><code><span class="c-key">integration-db:</span>
+  <span class="c-key">services:</span>                       <span class="c-com"># JOB-level key (sibling of runs-on/steps)</span>
+    <span class="c-key">postgres:</span>                     <span class="c-com"># service id = its network hostname</span>
+      <span class="c-key">image:</span> postgres:16
+      <span class="c-key">options:</span> >-                  <span class="c-com"># GitHub waits for healthy BEFORE steps run</span>
+        --health-cmd pg_isready --health-interval 10s ...
+  <span class="c-key">steps:</span>
+    - <span class="c-key">run:</span> psql -h localhost -U testuser -d testdb -c <span class="c-str">"SELECT version();"</span></code></pre>
+
+  <div class="grid2">
+    <div class="callout tip"><span class="lbl">Health check = no guessing</span>GitHub won't start your steps until <code>pg_isready</code> reports healthy — the <i>proper</i> fix for the <code>sleep 3</code> readiness race in Part B. No flake.</div>
+    <div class="callout"><span class="lbl">Addressing it</span>Steps run on the runner VM, so connect at <code>localhost:5432</code>. If the <i>job itself</i> ran inside a container, you'd use the service name <code>postgres</code> as the host — a classic interview distinction.</div>
+  </div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>Build the image in CI to catch "builds but app is broken"; use <code>services:</code> with health checks to give integration tests a real, ready dependency.</p></div>
+</section>
+
+<!-- ========================= LAB 8 ========================= -->
+<section id="lab8">
+  <h2 class="t"><span class="num">L8</span>Environments &amp; deploy gates</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">CI → CD · environment · required reviewer</span></div>
+  <p><b>Goal:</b> cross from CI (verify) to CD (ship) — with a human approval gate in front of the deploy.</p>
+
+  <pre><span class="lang">yaml</span><code><span class="c-key">deploy:</span>
+  <span class="c-key">needs:</span> test                          <span class="c-com"># 1) only after CI is green</span>
+  <span class="c-key">if:</span> github.ref == <span class="c-str">'refs/heads/main'</span>   <span class="c-com"># 2) only from main, never PRs</span>
+  <span class="c-key">runs-on:</span> ubuntu-latest
+  <span class="c-key">environment:</span> production            <span class="c-com"># 3) pause for a required reviewer</span>
+  <span class="c-key">steps:</span>
+    - <span class="c-key">run:</span> echo <span class="c-str">"Deploying... (real deploy command here)"</span></code></pre>
+
+  <div class="mock">
+    <div class="bar"><span class="d" style="background:#f85149"></span><span class="d" style="background:#d29922"></span><span class="d" style="background:#3fb950"></span><span class="t">Actions ▸ push to main ▸ awaiting approval</span></div>
+    <div class="row"><span class="ic ok">✓</span> lint <span class="dur">1m 02s</span></div>
+    <div class="row"><span class="ic ok">✓</span> test (×4) <span class="dur">2m 18s</span></div>
+    <div class="row"><span class="ic ok">✓</span> docker-build <span class="dur">1m 40s</span></div>
+    <div class="row"><span class="ic wait">⏸</span> deploy — <b>&nbsp;Review pending</b> · <i>Approve to continue</i> <span class="dur">waiting</span></div>
+  </div>
+  <p class="figcap">Fig 4 — With <code>environment: production</code> + a required reviewer, the run pauses at <code>deploy</code> until a human clicks Approve.</p>
+
+  <div class="callout star"><span class="lbl">The three stacked guards ARE the lesson</span><code>needs: test</code> (green only) · <code>if: …main</code> (trunk only) · <code>environment: production</code> (human sign-off). Real release pipelines want all three.</div>
+  <div class="callout warn"><span class="lbl">One-time UI step</span>YAML can't create the environment. Do it at <b>Settings → Environments → production</b> and add yourself as <b>Required reviewer</b>. The gate fires on the event the job runs on — so you see the pause <i>after merge to main</i>, not on the PR.</div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>The real release shape: tests pass → trunk only → human sign-off → ship. That's the merge gate plus the deploy gate.</p></div>
+</section>
+
+<!-- ========================= LAB 9 ========================= -->
+<section id="lab9">
+  <h2 class="t"><span class="num">L9</span>Reusable &amp; composite workflows</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">workflow_call · composite action · DRY</span></div>
+  <p><b>Goal:</b> stop copy-pasting the setup block. GitHub gives <b>two</b> reuse mechanisms — I built both and composed them.</p>
+
+  <h4>The distinction (the interview answer)</h4>
+  <table>
+    <tr><th></th><th>Composite action</th><th>Reusable workflow</th></tr>
+    <tr><td><b>Reuses</b></td><td>a group of <b>steps</b></td><td>a whole <b>job</b></td></tr>
+    <tr><td><b><code>uses:</code> at</b></td><td><b>step</b> level (inside a job)</td><td><b>job</b> level (where <code>runs-on</code> goes)</td></tr>
+    <tr><td><b>Declared by</b></td><td><code>runs: using: composite</code></td><td><code>on: workflow_call</code></td></tr>
+    <tr><td><b>Inputs</b></td><td><code>inputs:</code> (untyped ok)</td><td><code>inputs:</code> <b>must be typed</b></td></tr>
+    <tr><td><b>Best for</b></td><td>share steps within a job</td><td>share a whole stage, esp. cross-repo</td></tr>
+  </table>
+
+  <div class="grid2">
+    <div>
+      <h4>Composite action</h4>
+      <pre><span class="lang">yaml · actions/setup/action.yml</span><code><span class="c-key">runs:</span>
+  <span class="c-key">using:</span> composite
+  <span class="c-key">steps:</span>
+    - <span class="c-key">uses:</span> actions/setup-python@v5
+      <span class="c-key">with:</span> { <span class="c-key">python-version:</span> <span class="c-str">${{ inputs.python-version }}</span> }
+    - <span class="c-key">uses:</span> actions/cache@v4
+      ...
+    - <span class="c-key">shell:</span> bash          <span class="c-com"># MUST declare a shell</span>
+      <span class="c-key">run:</span> pip install -r requirements.txt</code></pre>
+    </div>
+    <div>
+      <h4>Reusable workflow</h4>
+      <pre><span class="lang">yaml · reusable-tests.yml</span><code><span class="c-key">on:</span>
+  <span class="c-key">workflow_call:</span>
+    <span class="c-key">inputs:</span>
+      <span class="c-key">python-version:</span> { <span class="c-key">required:</span> <span class="c-num">true</span>, <span class="c-key">type:</span> string }
+    <span class="c-key">secrets:</span>
+      <span class="c-key">MY_TOKEN:</span> { <span class="c-key">required:</span> <span class="c-num">false</span> }
+<span class="c-key">jobs:</span>
+  <span class="c-key">run-tests:</span>
+    <span class="c-key">steps:</span>
+      - <span class="c-key">uses:</span> actions/checkout@v4
+      - <span class="c-key">uses:</span> ./.github/actions/setup   <span class="c-com"># composite!</span></code></pre>
+    </div>
+  </div>
+
+  <h4>The caller (ci.yml test job)</h4>
+  <pre><span class="lang">yaml</span><code><span class="c-key">test:</span>
+  <span class="c-key">needs:</span> lint
+  <span class="c-key">strategy:</span> { <span class="c-key">matrix:</span> { <span class="c-key">python-version:</span> [<span class="c-str">"3.9"</span>,<span class="c-str">"3.10"</span>,<span class="c-str">"3.11"</span>,<span class="c-str">"3.12"</span>] } }
+  <span class="c-key">uses:</span> ./.github/workflows/reusable-tests.yml   <span class="c-com"># where runs-on would go</span>
+  <span class="c-key">with:</span> { <span class="c-key">python-version:</span> <span class="c-str">${{ matrix.python-version }}</span> }
+  <span class="c-key">secrets:</span> inherit                              <span class="c-com"># forward repo secrets</span></code></pre>
+
+  <div class="callout trap"><span class="lbl">Shape gotcha</span>A caller job puts <code>uses:</code> where <code>runs-on:</code> would go and may <b>NOT</b> also have <code>runs-on:</code> or <code>steps:</code>. It MAY keep <code>needs:</code>, <code>strategy.matrix</code>, <code>with:</code>, <code>secrets:</code>. Mixing <code>uses:</code> with <code>steps:</code> is invalid.</div>
+  <div class="grid2">
+    <div class="callout warn"><span class="lbl">Secrets don't auto-flow</span>Into a reusable workflow you must pass them — declare under <code>secrets:</code> or use <code>secrets: inherit</code> to forward all at once.</div>
+    <div class="callout trap"><span class="lbl">Composite needs checkout first</span>A local action (<code>uses: ./...</code>) is repo files, so the caller must <code>checkout</code> before it — a composite can't check out the repo that contains it (chicken-and-egg). So no checkout step lives inside it.</div>
+  </div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>Composite action = reuse <i>steps</i>; reusable workflow = reuse a <i>job/stage</i>, callable across repos. Edit once, propagate everywhere.</p></div>
+</section>
+
+<!-- ========================= LAB 10 ========================= -->
+<section id="lab10">
+  <h2 class="t"><span class="num">L10</span>Reporting — a human HTML report</h2>
+  <div class="labmeta"><span class="pill done">✓ done</span><span class="pill">pytest-html · self-contained · artifact</span></div>
+  <p><b>Goal:</b> Lab 1 saved <i>machine</i> reports (XML). Lab 10 adds a <b>human</b> one — a single HTML page of every test case, pass/fail, duration and traceback — into the same artifact.</p>
+
+  <pre><span class="lang">yaml · reusable-tests.yml</span><code>- <span class="c-key">run:</span> >-
+    pytest --cov=app --cov-report=xml --junitxml=report.xml
+    --html=report.html --self-contained-html      <span class="c-com"># the new flags</span>
+- <span class="c-key">uses:</span> actions/upload-artifact@v4
+  <span class="c-key">if:</span> <span class="c-fn">always()</span>
+  <span class="c-key">with:</span>
+    <span class="c-key">name:</span> test-reports-<span class="c-str">${{ inputs.python-version }}</span>
+    <span class="c-key">path:</span> |
+      report.html
+      report.xml
+      coverage.xml</code></pre>
+
+  <div class="mock">
+    <div class="bar"><span class="d" style="background:#f85149"></span><span class="d" style="background:#d29922"></span><span class="d" style="background:#3fb950"></span><span class="t">report.html · pytest-html</span></div>
+    <div class="row"><span class="ic ok">✓</span> test_add <span class="dur">0.001s · passed</span></div>
+    <div class="row"><span class="ic ok">✓</span> test_divide_by_zero_raises <span class="dur">0.002s · passed</span></div>
+    <div class="row"><span class="ic ok">✓</span> test_health <span class="dur">0.004s · passed</span></div>
+    <div class="row"><span class="ic ok">✓</span> test_calculate_add <span class="dur">0.003s · passed</span></div>
+    <div class="row"><span class="ic ok">✓</span> 9 passed in 0.42s <span class="dur">100%</span></div>
+  </div>
+  <p class="figcap">Fig 5 — The downloadable <code>report.html</code>: one readable page per Python version.</p>
+
+  <div class="callout star"><span class="lbl">The flag that matters</span><code>--self-contained-html</code> inlines the CSS/JS into the single file. Without it, pytest-html writes a sibling <code>assets/</code> folder and the downloaded HTML renders broken. Always use it when the report travels.</div>
+  <div class="callout"><span class="lbl">if: always(), again</span>A red build is exactly when you want to open the report and see which case failed — so the upload must run on failure too.</div>
+  <div class="callout warn"><span class="lbl">Scope &amp; next steps</span>Scoped to the HTML report. Deferred: JUnit-as-PR-check (<code>dorny/test-reporter</code>) and a build-status badge in the README — the natural follow-ups, since both feed off the same XML.</div>
+  <div class="soundbite"><span class="lbl">★ Soundbite</span><p>Machine XML in, human report out. This closes the reporting loop opened in Lab 1.</p></div>
+</section>
+
+<!-- ===== THEMES ===== -->
+<section id="themes">
+  <h2 class="t"><span class="num">★</span>Cross-cutting themes</h2>
+  <p>If an interviewer probes <i>why</i>, these four ideas explain almost every decision in the pipeline.</p>
+  <div class="grid2">
+    <div class="box"><h4>1 · Fresh-VM isolation</h4><p class="muted">Each job is a clean machine. Jobs repeat checkout/setup; sharing files between jobs needs artifacts. This is <i>why</i> matrices, <code>needs</code>, and the artifact handoff exist.</p></div>
+    <div class="box"><h4>2 · Cache the inputs, not the outputs</h4><p class="muted">pip downloads (Lab 5) and the Docker deps layer (Lab 7) both cache <i>dependencies</i> keyed by a content hash. Same theme at two altitudes; staleness is the danger.</p></div>
+    <div class="box"><h4>3 · Gates everywhere</h4><p class="muted">PR checks gate the merge; <code>needs</code> gates jobs; <code>if</code> gates by branch; environments gate by human approval. Layered gates = safe delivery.</p></div>
+    <div class="box"><h4>4 · Run only what's needed</h4><p class="muted">Path filters, schedules, <code>fail-fast</code>, and <code>needs</code>-skipping all minimise wasted runner time without weakening the gate.</p></div>
+  </div>
+</section>
+
+<!-- ===== CHEAT ===== -->
+<section id="cheat">
+  <h2 class="t"><span class="num">Q&amp;A</span>Rapid-fire interview Q&amp;A</h2>
+
+  <details class="qa"><summary>Difference between a step and a job?</summary><div class="inner">A <b>job</b> runs on its own fresh VM; jobs run in parallel by default and can be chained with <code>needs</code>. <b>Steps</b> are ordered commands inside one job sharing that VM and its files.</div></details>
+  <details class="qa"><summary>How do you share a file between two jobs?</summary><div class="inner">Upload it as an <b>artifact</b> in job A (<code>upload-artifact</code>) and download it in job B (<code>download-artifact</code>) — because each job is an isolated VM, nothing carries over automatically.</div></details>
+  <details class="qa"><summary>What does <code>fail-fast: false</code> do?</summary><div class="inner">Stops a matrix from cancelling sibling jobs when one fails, so you see every version that breaks in a single run.</div></details>
+  <details class="qa"><summary>Why must matrix artifacts have unique names?</summary><div class="inner"><code>upload-artifact@v4</code> rejects two artifacts sharing a name in one run (409). Suffix with <code>${{ matrix.python-version }}</code>. (v3 silently merged them.)</div></details>
+  <details class="qa"><summary>What makes a cache correct (not stale)?</summary><div class="inner">A content fingerprint in the key — <code>hashFiles('requirements.txt')</code>. Change deps → key changes → fresh cache. A key with no content hash is a bug.</div></details>
+  <details class="qa"><summary>When does a cache get saved?</summary><div class="inner">Automatically in a hidden post-job step, and <b>only on a miss</b>. You never write a save step; place the cache step before install.</div></details>
+  <details class="qa"><summary>Cron timezone &amp; which branch?</summary><div class="inner">Always <b>UTC</b>, no timezone field. <code>schedule</code> runs only on the <b>default branch</b>, best-effort timing, auto-disabled after 60 days idle.</div></details>
+  <details class="qa"><summary>The "skipped required check" deadlock?</summary><div class="inner">A path-filtered workflow set as a required check shows <b>skipped</b> on PRs that don't touch those paths; a required check that never passes blocks the PR forever. Fix with a path-aware pattern or an always-green placeholder.</div></details>
+  <details class="qa"><summary>Image vs container?</summary><div class="inner">An <b>image</b> is the built, frozen package (Dockerfile output). A <b>container</b> is a running instance of it. One image → many containers.</div></details>
+  <details class="qa"><summary>Why <code>0.0.0.0</code> in the Flask app?</summary><div class="inner"><code>127.0.0.1</code> only listens inside the container; <code>0.0.0.0</code> lets the mapped port be reached from outside (your machine / the CI smoke test).</div></details>
+  <details class="qa"><summary>Connecting to a <code>services:</code> container — which host?</summary><div class="inner">Steps on the runner VM → <code>localhost</code> (with a port mapping). A job running inside a container → use the service id (<code>postgres</code>) as the hostname.</div></details>
+  <details class="qa"><summary>Three guards on a safe deploy job?</summary><div class="inner"><code>needs: test</code> (green), <code>if: github.ref == 'refs/heads/main'</code> (trunk), <code>environment: production</code> (human approval).</div></details>
+  <details class="qa"><summary>Composite action vs reusable workflow?</summary><div class="inner">Composite reuses <b>steps</b> (step-level <code>uses</code>, <code>using: composite</code>); reusable workflow reuses a whole <b>job</b> (job-level <code>uses</code>, <code>on: workflow_call</code>, typed inputs, callable cross-repo).</div></details>
+  <details class="qa"><summary>Do secrets flow into a reusable workflow automatically?</summary><div class="inner">No. Pass them explicitly under <code>secrets:</code> or use <code>secrets: inherit</code> to forward all repo secrets.</div></details>
+  <details class="qa"><summary>Why <code>--self-contained-html</code>?</summary><div class="inner">It inlines CSS/JS so a downloaded single <code>report.html</code> renders correctly; otherwise pytest-html splits assets into a folder and the lone file looks broken.</div></details>
+  <details class="qa"><summary>Why does <code>if: always()</code> matter on uploads?</summary><div class="inner">Steps are skipped after an earlier failure by default; <code>always()</code> forces the report upload to run — and a failed build is exactly when you need the report.</div></details>
+</section>
+
+<!-- ===== COMMANDS ===== -->
+<section id="commands">
+  <h2 class="t"><span class="num">⌘</span>Command reference</h2>
+  <pre><span class="lang">powershell · local dev (Windows)</span><code><span class="c-com"># always work in the venv</span>
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+pytest                                  <span class="c-com"># all tests</span>
+pytest -k divide                        <span class="c-com"># match by name</span>
+pytest -n auto                          <span class="c-com"># parallel (xdist)</span>
+pytest --cov=app --cov-report=term-missing
+pytest --html=report.html --self-contained-html   <span class="c-com"># human report</span>
+flake8 app tests --max-line-length=100  <span class="c-com"># lint</span>
+python -m app.api                       <span class="c-com"># run API at :5000</span></code></pre>
+  <pre><span class="lang">bash · docker</span><code>docker build -t cicd-lab .
+docker run --rm -p 5000:5000 cicd-lab
+curl http://localhost:5000/health       <span class="c-com"># {"status":"ok"}</span></code></pre>
+  <pre><span class="lang">bash · git flow (one branch + PR per lab)</span><code>git checkout -b lab-N-topic
+git add -A && git commit -m "Lab N: ..."
+git push -u origin lab-N-topic          <span class="c-com"># open PR from the printed link</span></code></pre>
+
+  <hr>
+  <p class="muted toptag">Status: 10/10 labs complete · 9 tests · ~91% coverage · flake8 clean. Next on the roadmap: port Labs 1–3 to Azure DevOps (<code>azure-pipelines.yml</code>).</p>
+  <p class="muted toptag">Generated as a single self-contained file for offline interview revision. Diagrams are CSS mockups, not live GitHub screenshots.</p>
+</section>
+
+</main>
+</div>
+
+<script>
+  // active-section highlighting in the sidebar
+  const links = [...document.querySelectorAll('nav.side a')];
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = map.get(e.target.id);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
