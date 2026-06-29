@@ -258,8 +258,15 @@ Full curriculum is in `README.md`. Status:
   container, a `pg_isready` health check, and a `psql … SELECT version();` step
   to prove connectivity. Branch `lab-7-services-docker`, PR #3, merged green.
   (See §15 for the lesson.)
-- **Labs 8–10:** environments & deploy gates, reusable workflows, reporting &
-  badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
+- **Lab 8 — Environments & deploy gates:** DONE (config). Added a `deploy` job
+  with three stacked guards — `needs: test`, `if: github.ref ==
+  'refs/heads/main'`, and `environment: production` — so a deploy runs only when
+  CI is green, only from `main`, and only after a human approves. Deploy step is
+  a placeholder `echo` (nothing real to ship). Branch `lab-8-environments`, PR
+  opened. The `production` environment + required reviewer is a one-time GitHub
+  UI step (Settings → Environments). (See §16 for the lesson.)
+- **Labs 9–10:** reusable workflows, reporting & badges. Then port Labs 1–3 to
+  Azure DevOps (`azure-pipelines.yml`).
 
 ---
 
@@ -638,3 +645,60 @@ step.
 **Why kept in its own job:** the calculator has no DB, so this job is honest about
 being a *mechanism* demo — the skill (wire a service + connect to it) transfers to
 any real app; the data is throwaway.
+
+---
+
+## 16. Lab 8 — Environments & deploy gates (the lesson)
+
+**Goal:** cross the line from **CI** (verify code) to **CD** (ship it) — but put a
+**human approval gate** in front of the deploy. Every lab so far only *checked*
+code (lint, test, build, connect); nothing ever went live. Lab 8 adds the missing
+half: a `deploy` job and the controls that decide *when it's allowed to run*.
+
+```yaml
+  deploy:
+    needs: test                            # 1) only after CI is green
+    if: github.ref == 'refs/heads/main'    # 2) only from main, never on PRs
+    runs-on: ubuntu-latest
+    environment: production                # 3) pause for a required reviewer
+    steps:
+      - name: Deploy
+        run: echo "Deploying to production... (real deploy command goes here)"
+```
+
+**The three stacked guards ARE the lesson.** Each blocks the deploy on a
+different axis, and a real release pipeline wants all three:
+- **`needs: test`** — won't even attempt the deploy unless the whole test matrix
+  passed. (Same job-graph edge as Lab 3, now used as a release gate.)
+- **`if: github.ref == 'refs/heads/main'`** — a *conditional* on the job. PRs and
+  feature branches skip it entirely; you only deploy from the trunk.
+- **`environment: production`** — ties the job to a GitHub **Environment**, which
+  is what arms the approval gate.
+
+**What an Environment is.** A named deploy target (`staging`, `production`) you
+attach **protection rules** to. The key rule here is a **required reviewer**: when
+a job declares `environment: production`, the run *pauses* at that job and waits
+for the named person to click **Approve** before any step executes. Environments
+can also hold environment-scoped secrets (real prod credentials live here, not in
+repo-wide secrets) and other rules — wait timers, branch restrictions.
+
+**The one-time UI step (YAML can't do it).** Create the environment at
+**Settings → Environments → New environment → `production`**, then add yourself
+under **Required reviewers**. The `environment: production` line only *references*
+it; the gate itself is configured in the UI. Without this setup the job still
+runs — there's just no gate to approve.
+
+**Gotchas (interview-grade):**
+- **The gate fires on the event the job actually runs on.** Because of the `if`,
+  `deploy` only runs on a push to `main` — so you'll see the pause *after merge*,
+  not on the PR. Intended flow: merge → run pauses at `deploy` → approve → it
+  proceeds.
+- **`environment:` is a job-level key** (sibling of `runs-on`/`needs`), like
+  `services:` and `strategy:` before it — not a step input.
+- **The deploy step is a placeholder `echo`**, exactly like Lab 7's postgres was a
+  mechanism demo. The *gating* is the point; a real job swaps the echo for its
+  actual deploy command (push image, release script, `kubectl apply`, …).
+
+**Why an SDET cares:** this is the real shape of a release pipeline — *tests pass
+→ trunk only → human sign-off → ship*. You've now built the merge gate (PR checks)
+and the deploy gate (environment approval) that protect production at most shops.

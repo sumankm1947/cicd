@@ -63,8 +63,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] (Note) the postgres part is a mechanism demo only — the calculator has no DB
 
 ## Lab 8 — Environments & deploy gates
-- [ ] Define a `production` environment with a required reviewer
-- [ ] Add a `deploy` job that `needs: test` and runs only on `main`
+- [x] Add a `deploy` job (`needs: test`, `if: github.ref == 'refs/heads/main'`, `environment: production`)
+- [x] Push branch `lab-8-environments`, open PR
+- [ ] Define the `production` environment + required reviewer (Settings → Environments) — UI step
+- [ ] Merge to `main`, watch the run PAUSE at `deploy`, click Approve, confirm it proceeds
 
 ## Lab 9 — Reusable & composite workflows
 - [ ] Extract shared setup into a reusable workflow (`workflow_call`)
