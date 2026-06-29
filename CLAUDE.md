@@ -258,8 +258,24 @@ Full curriculum is in `README.md`. Status:
   container, a `pg_isready` health check, and a `psql … SELECT version();` step
   to prove connectivity. Branch `lab-7-services-docker`, PR #3, merged green.
   (See §15 for the lesson.)
-- **Labs 8–10:** environments & deploy gates, reusable workflows, reporting &
-  badges. Then port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
+- **Lab 8 — Environments & deploy gates:** DONE (config). Added a `deploy` job
+  with three stacked guards — `needs: test`, `if: github.ref ==
+  'refs/heads/main'`, and `environment: production` — so a deploy runs only when
+  CI is green, only from `main`, and only after a human approves. Deploy step is
+  a placeholder `echo` (nothing real to ship). Branch `lab-8-environments`, PR
+  opened. The `production` environment + required reviewer is a one-time GitHub
+  UI step (Settings → Environments). (See §16 for the lesson.)
+- **Lab 9 — Reusable & composite workflows:** DONE (config). Built BOTH reuse
+  mechanisms and composed them: a **composite action**
+  (`.github/actions/setup/action.yml`) bundling setup-python + cache + install,
+  reused by the `lint` job; and a **reusable workflow**
+  (`.github/workflows/reusable-tests.yml`, `on: workflow_call`) that packages the
+  whole test job and *itself* uses the composite action. `ci.yml`'s `test` job
+  now CALLS the reusable workflow (matrix + `with:` + `secrets: inherit`).
+  Verified locally (9 passed) + all three YAMLs parse. Branch `lab-9-reusable`.
+  (See §17 for the lesson.)
+- **Lab 10:** reporting & badges. Then port Labs 1–3 to Azure DevOps
+  (`azure-pipelines.yml`).
 
 ---
 
@@ -638,3 +654,163 @@ step.
 **Why kept in its own job:** the calculator has no DB, so this job is honest about
 being a *mechanism* demo — the skill (wire a service + connect to it) transfers to
 any real app; the data is throwaway.
+
+---
+
+## 16. Lab 8 — Environments & deploy gates (the lesson)
+
+**Goal:** cross the line from **CI** (verify code) to **CD** (ship it) — but put a
+**human approval gate** in front of the deploy. Every lab so far only *checked*
+code (lint, test, build, connect); nothing ever went live. Lab 8 adds the missing
+half: a `deploy` job and the controls that decide *when it's allowed to run*.
+
+```yaml
+  deploy:
+    needs: test                            # 1) only after CI is green
+    if: github.ref == 'refs/heads/main'    # 2) only from main, never on PRs
+    runs-on: ubuntu-latest
+    environment: production                # 3) pause for a required reviewer
+    steps:
+      - name: Deploy
+        run: echo "Deploying to production... (real deploy command goes here)"
+```
+
+**The three stacked guards ARE the lesson.** Each blocks the deploy on a
+different axis, and a real release pipeline wants all three:
+- **`needs: test`** — won't even attempt the deploy unless the whole test matrix
+  passed. (Same job-graph edge as Lab 3, now used as a release gate.)
+- **`if: github.ref == 'refs/heads/main'`** — a *conditional* on the job. PRs and
+  feature branches skip it entirely; you only deploy from the trunk.
+- **`environment: production`** — ties the job to a GitHub **Environment**, which
+  is what arms the approval gate.
+
+**What an Environment is.** A named deploy target (`staging`, `production`) you
+attach **protection rules** to. The key rule here is a **required reviewer**: when
+a job declares `environment: production`, the run *pauses* at that job and waits
+for the named person to click **Approve** before any step executes. Environments
+can also hold environment-scoped secrets (real prod credentials live here, not in
+repo-wide secrets) and other rules — wait timers, branch restrictions.
+
+**The one-time UI step (YAML can't do it).** Create the environment at
+**Settings → Environments → New environment → `production`**, then add yourself
+under **Required reviewers**. The `environment: production` line only *references*
+it; the gate itself is configured in the UI. Without this setup the job still
+runs — there's just no gate to approve.
+
+**Gotchas (interview-grade):**
+- **The gate fires on the event the job actually runs on.** Because of the `if`,
+  `deploy` only runs on a push to `main` — so you'll see the pause *after merge*,
+  not on the PR. Intended flow: merge → run pauses at `deploy` → approve → it
+  proceeds.
+- **`environment:` is a job-level key** (sibling of `runs-on`/`needs`), like
+  `services:` and `strategy:` before it — not a step input.
+- **The deploy step is a placeholder `echo`**, exactly like Lab 7's postgres was a
+  mechanism demo. The *gating* is the point; a real job swaps the echo for its
+  actual deploy command (push image, release script, `kubectl apply`, …).
+
+**Why an SDET cares:** this is the real shape of a release pipeline — *tests pass
+→ trunk only → human sign-off → ship*. You've now built the merge gate (PR checks)
+and the deploy gate (environment approval) that protect production at most shops.
+
+---
+
+## 17. Lab 9 — Reusable & composite workflows (the lesson)
+
+**Goal:** DRY for pipelines. Every job repeated the same opening — checkout →
+setup-python → cache → install. Lab 9 extracts that once and reuses it, via the
+**two** mechanisms GitHub gives you. The lab is really about knowing *which is
+which*, so we built both and composed them.
+
+### The one-line distinction (the interview answer)
+
+| | Composite action | Reusable workflow |
+|---|---|---|
+| Reuses | a group of **steps** | a whole **job** (or jobs) |
+| Called with `uses:` at | **step** level (inside a job) | **job** level (where `runs-on:` goes) |
+| Declared by | `runs: using: composite` | `on: workflow_call` |
+| Inputs | `inputs:` (untyped ok) | `inputs:` **must be typed** |
+| Best for | share a *block of steps* within a job | share an *entire stage*, esp. across repos |
+
+**Mental model:** composite action = reuse *steps*; reusable workflow = reuse a
+*job*. Same `uses:` keyword, two different altitudes.
+
+### Part B — the composite action (`.github/actions/setup/action.yml`)
+
+Bundles setup-python + cache + install behind one `uses:`. `lint` now calls it:
+
+```yaml
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup     # step-level uses of a LOCAL action
+        with:
+          python-version: "3.10"
+```
+
+Three things that make it click:
+- **`runs: using: composite`** is what makes a folder-with-`action.yml` an action
+  rather than a workflow.
+- **No `checkout` inside it (the key gotcha).** A *local* action (`uses: ./...`)
+  is just files in the repo, so the repo must ALREADY be checked out before the
+  runner can find `action.yml`. A composite action can't check out the very repo
+  that contains it — chicken-and-egg. So every caller runs `checkout` first.
+- **Composite `run:` steps MUST set `shell:`** (`shell: bash`). Forgetting it is a
+  hard error — and it bit us during this lab.
+
+### Part A — the reusable workflow (`.github/workflows/reusable-tests.yml`)
+
+Packages the whole *test job* so other workflows call it like a function:
+
+```yaml
+on:
+  workflow_call:                 # never runs alone — only when called
+    inputs:
+      python-version: { required: true, type: string }   # MUST be typed
+    secrets:
+      MY_TOKEN: { required: false }    # secrets are NOT auto-forwarded
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup           # <-- uses the composite action
+        with: { python-version: ${{ inputs.python-version }} }
+      - run: pytest ...
+```
+
+This is where **both mechanisms compose**: a reusable workflow whose job uses the
+composite action.
+
+### The caller (`ci.yml` `test` job)
+
+```yaml
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    uses: ./.github/workflows/reusable-tests.yml   # call the workflow
+    with:
+      python-version: ${{ matrix.python-version }}
+    secrets: inherit                               # forward repo secrets
+```
+
+**The big shape change (and a mistake hit this lab):** a job that calls a
+reusable workflow puts `uses:` where `runs-on:` would go, and **may NOT** also
+have `runs-on:` or `steps:`. It MAY keep `needs:`, `strategy.matrix`, `with:`,
+and `secrets:`. (The first attempt mixed `uses:` with `runs-on`/`steps`/`strategy`
++ a full step list — invalid; GitHub rejects it.) The matrix fans out in the
+*caller*; each clone calls the workflow with one version.
+
+**Gotchas worth knowing:**
+- **Secrets don't auto-flow into a reusable workflow.** Either list them under
+  `secrets:` and pass each explicitly, or use **`secrets: inherit`** to forward
+  all repo secrets at once (what we do, so the Lab 4 `MY_TOKEN` demo still works).
+- **Cross-repo reuse is the real payoff:**
+  `uses: org/repo/.github/workflows/x.yml@v1` — pin a ref. One central pipeline,
+  many repos. (Composite actions can be shared cross-repo too, as their own repo.)
+- **Local actions/workflows need the path `./...`** and a prior `checkout`.
+
+**Why an SDET cares:** real orgs don't copy-paste pipeline setup into 20 repos —
+they publish a reusable workflow / composite action and call it everywhere, so a
+single edit (bump an action, change the cache key) propagates. This is the
+maintainability half of CI.

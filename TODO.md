@@ -63,11 +63,19 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] (Note) the postgres part is a mechanism demo only — the calculator has no DB
 
 ## Lab 8 — Environments & deploy gates
-- [ ] Define a `production` environment with a required reviewer
-- [ ] Add a `deploy` job that `needs: test` and runs only on `main`
+- [x] Add a `deploy` job (`needs: test`, `if: github.ref == 'refs/heads/main'`, `environment: production`)
+- [x] Push branch `lab-8-environments`, open PR
+- [x] Define the `production` environment + required reviewer (Settings → Environments) — UI step
+- [x] Merge to `main`, watch the run PAUSE at `deploy`, click Approve, confirm it proceeds
 
 ## Lab 9 — Reusable & composite workflows
-- [ ] Extract shared setup into a reusable workflow (`workflow_call`)
+- [x] Composite action `.github/actions/setup/action.yml` (setup-python + cache + install)
+- [x] Reuse the composite action in the `lint` job (step-level `uses: ./...`)
+- [x] Reusable workflow `.github/workflows/reusable-tests.yml` (`on: workflow_call`, typed input)
+- [x] Make `test` CALL the reusable workflow (matrix + `with:` + `secrets: inherit`, no `runs-on`/`steps`)
+- [x] Reusable workflow internally uses the composite action (both mechanisms composed)
+- [x] Verified locally (9 passed) + all three YAMLs parse clean
+- [ ] Push branch `lab-9-reusable`, open PR, confirm the job graph + 4 reusable runs in Actions tab
 
 ## Lab 10 — Reporting & badges
 - [ ] Publish JUnit results as a PR check
