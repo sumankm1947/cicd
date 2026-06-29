@@ -187,3 +187,39 @@ jobs:
           PGPASSWORD: testpass     # psql reads the password from this env var
         run: |
           psql -h localhost -U testuser -d testdb -c "SELECT version();"
+
+
+  # ---------------------------------------------------------------------------
+  # LAB 8 — Environments & deploy gates (this is where CI becomes CD).
+  # Every lab so far only VERIFIED code (lint, test, build, connect). Nothing
+  # ever "shipped". This job adds the missing half: a deploy step guarded so it
+  # runs only when it's truly safe, plus a HUMAN approval gate in front of it.
+  #
+  # Three guards are stacked here, and that combination IS the lesson:
+  #   needs: test                          -> never deploy unless CI is green
+  #   if: github.ref == 'refs/heads/main'  -> only from main, never on PRs
+  #   environment: production              -> pause for a required reviewer
+  #
+  # ONE-TIME UI SETUP (YAML alone can't do this): create the environment in
+  # GitHub at  Settings -> Environments -> New environment -> "production",
+  # then add yourself under "Required reviewers". Until that reviewer approves,
+  # this job stays PENDING and its steps do not run. Environments can also hold
+  # environment-scoped secrets (e.g. real prod credentials) — out of scope here.
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: test                            # wait for the whole test matrix to pass
+    if: github.ref == 'refs/heads/main'    # skip entirely on pull requests / feature branches
+    runs-on: ubuntu-latest
+
+    # Tying the job to an environment is what arms the approval gate. When the
+    # run reaches this job, GitHub holds it and waits for the environment's
+    # required reviewer to click "Approve" before any step below executes.
+    environment: production
+
+    steps:
+      # We have nothing real to deploy, so the "deploy" is a placeholder echo —
+      # exactly like Lab 7's postgres was a mechanism demo. The GATING is the
+      # point; a real pipeline would swap this for its actual deploy command
+      # (push image, run a release script, kubectl apply, etc.).
+      - name: Deploy
+        run: echo "Deploying to production... (real deploy command goes here)"
