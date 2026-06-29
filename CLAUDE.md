@@ -274,8 +274,14 @@ Full curriculum is in `README.md`. Status:
   now CALLS the reusable workflow (matrix + `with:` + `secrets: inherit`).
   Verified locally (9 passed) + all three YAMLs parse. Branch `lab-9-reusable`.
   (See §17 for the lesson.)
-- **Lab 10:** reporting & badges. Then port Labs 1–3 to Azure DevOps
-  (`azure-pipelines.yml`).
+- **Lab 10 — Reporting (HTML test report):** DONE (config). Added
+  `pytest-html==4.2.0` and a `--html=report.html --self-contained-html` flag to
+  the test run in the reusable workflow, then added `report.html` to the
+  `test-reports-*` artifact so a human-readable per-test report downloads
+  alongside the machine XML. Generated reports gitignored. Scoped to the HTML
+  report only — JUnit-as-PR-check and the README badge were deferred. Branch
+  `lab-10-reporting`. (See §18 for the lesson.)
+- **Next:** port Labs 1–3 to Azure DevOps (`azure-pipelines.yml`).
 
 ---
 
@@ -814,3 +820,66 @@ and `secrets:`. (The first attempt mixed `uses:` with `runs-on`/`steps`/`strateg
 they publish a reusable workflow / composite action and call it everywhere, so a
 single edit (bump an action, change the cache key) propagates. This is the
 maintainability half of CI.
+
+---
+
+## 18. Lab 10 — Reporting: a human-readable HTML test report (the lesson)
+
+**Goal:** Lab 1's artifact already saved *machine* reports (`report.xml` JUnit,
+`coverage.xml` Cobertura) — great for tools, unreadable for humans. Lab 10 adds a
+**human** report: one HTML page listing every test case, its pass/fail, duration,
+and any error/traceback, saved into the same artifact. (Scoped to just this; the
+JUnit-as-PR-check and README badge from the original curriculum were deferred.)
+
+**The tool:** `pytest-html` (pinned `pytest-html==4.2.0` in `requirements.txt`;
+it pulls `pytest-metadata`). Two flags on the existing pytest call:
+
+```
+pytest ... --junitxml=report.xml --html=report.html --self-contained-html
+```
+
+- `--html=report.html` renders the run as a webpage.
+- **`--self-contained-html` is the one that matters for CI.** Without it,
+  pytest-html writes the CSS/JS into a sibling `assets/` folder; download just
+  `report.html` from an artifact and it renders unstyled/broken. `--self-contained`
+  inlines everything into the single file so it opens correctly anywhere. Always
+  use it when the report travels (artifact, email, etc.).
+
+**Where it's wired:** the test run lives in the **reusable workflow**
+(`reusable-tests.yml`, from Lab 9), so the flag and the artifact path go there —
+not in `ci.yml`. The upload just gains one line:
+
+```yaml
+      - name: Run tests
+        run: >-
+          pytest --cov=app --cov-report=term-missing --cov-report=xml
+          --junitxml=report.xml --html=report.html --self-contained-html
+      - name: Upload test & coverage reports
+        if: always()                    # <-- still the key: you want the report MOST when tests fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ inputs.python-version }}
+          path: |
+            report.html
+            report.xml
+            coverage.xml
+```
+
+**`if: always()` is doubly important now.** A red build is exactly when you want
+to open the HTML and see *which* case failed and why — so the upload must run on
+failure, not be skipped.
+
+**Generated files are build output, not source.** Added `report.html` and
+`report.xml` to `.gitignore` (alongside the already-ignored `coverage.xml`) so the
+local copies from running pytest never get committed — CI regenerates them fresh.
+
+**Retrieval (the SDET payoff):** Actions tab → the run → Artifacts →
+`test-reports-3.10` → unzip → open `report.html` in a browser. One readable page
+per Python version, kept 90 days. This closes the reporting loop opened in Lab 1
+§8: raw XML in, human report out.
+
+**Bigger picture (deferred, but know the names):** the machine XMLs feed the next
+rung — actions like `dorny/test-reporter` or `EnricoMi/publish-unit-test-result-action`
+turn `report.xml` into a **PR check with an inline test summary**, and a
+**workflow status badge** (`![CI](…/badge.svg)`) in the README shows green/red at
+a glance. We stopped at the artifact on purpose; those are the natural follow-ups.

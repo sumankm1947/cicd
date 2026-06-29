@@ -78,9 +78,12 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress
 - [ ] Push branch `lab-9-reusable`, open PR, confirm the job graph + 4 reusable runs in Actions tab
 
 ## Lab 10 — Reporting & badges
-- [ ] Publish JUnit results as a PR check
-- [ ] Publish HTML coverage as an artifact
-- [ ] Add a build-status badge to `README.md`
+- [x] Add `pytest-html==4.2.0` and generate a self-contained HTML test report
+- [x] Upload `report.html` in the `test-reports-*` artifact (alongside report.xml / coverage.xml)
+- [x] Gitignore generated `report.html` / `report.xml`
+- [x] Verified locally (9 passed, report.html generated)
+- [ ] Push branch `lab-10-reporting`, open PR, download the artifact and open `report.html`
+- [ ] (Deferred) JUnit-as-PR-check and build-status badge — scoped out for now
 
 ---
 
